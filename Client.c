@@ -29,10 +29,10 @@ void handle_command(const char *command) {
     if (strncmp(command, "EXIT", 4) == 0) {
         handle_exit();
     }
-    else if (strncmp(command, "/MSG", 4) == 0) {
+    else if (strncmp(command, "/msg", 4) == 0) {
         messaging_mode = 1;
-        send_to_server("/MSG\n");
-        printf("Messaging mode activated. Type your message to send to all connected users.\n");
+        send_to_server("\n/MSG");
+        printf("\nMessaging mode activated. Type your message to send to all connected users.\n");
     }
     else if (strncmp(command, "/LIST", 5) == 0) {
         handle_list();
