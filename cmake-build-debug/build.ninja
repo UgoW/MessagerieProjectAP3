@@ -49,17 +49,23 @@ cmake_ninja_workdir = /Users/ugo/CLionProjects/MessagerieSec/cmake-build-debug/
 
 build cmake_object_order_depends_target_MessagerieSec: phony || CMakeFiles/MessagerieSec.dir
 
-build CMakeFiles/MessagerieSec.dir/main.c.o: C_COMPILER__MessagerieSec_unscanned_Debug /Users/ugo/CLionProjects/MessagerieSec/main.c || cmake_object_order_depends_target_MessagerieSec
-  DEP_FILE = CMakeFiles/MessagerieSec.dir/main.c.o.d
-  FLAGS = -g -std=gnu11 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -fcolor-diagnostics
-  OBJECT_DIR = CMakeFiles/MessagerieSec.dir
-  OBJECT_FILE_DIR = CMakeFiles/MessagerieSec.dir
-
 build CMakeFiles/MessagerieSec.dir/Crypto/rsaEncryption.c.o: C_COMPILER__MessagerieSec_unscanned_Debug /Users/ugo/CLionProjects/MessagerieSec/Crypto/rsaEncryption.c || cmake_object_order_depends_target_MessagerieSec
   DEP_FILE = CMakeFiles/MessagerieSec.dir/Crypto/rsaEncryption.c.o.d
   FLAGS = -g -std=gnu11 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -fcolor-diagnostics
   OBJECT_DIR = CMakeFiles/MessagerieSec.dir
   OBJECT_FILE_DIR = CMakeFiles/MessagerieSec.dir/Crypto
+
+build CMakeFiles/MessagerieSec.dir/server.c.o: C_COMPILER__MessagerieSec_unscanned_Debug /Users/ugo/CLionProjects/MessagerieSec/server.c || cmake_object_order_depends_target_MessagerieSec
+  DEP_FILE = CMakeFiles/MessagerieSec.dir/server.c.o.d
+  FLAGS = -g -std=gnu11 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -fcolor-diagnostics
+  OBJECT_DIR = CMakeFiles/MessagerieSec.dir
+  OBJECT_FILE_DIR = CMakeFiles/MessagerieSec.dir
+
+build CMakeFiles/MessagerieSec.dir/Client.c.o: C_COMPILER__MessagerieSec_unscanned_Debug /Users/ugo/CLionProjects/MessagerieSec/Client.c || cmake_object_order_depends_target_MessagerieSec
+  DEP_FILE = CMakeFiles/MessagerieSec.dir/Client.c.o.d
+  FLAGS = -g -std=gnu11 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -fcolor-diagnostics
+  OBJECT_DIR = CMakeFiles/MessagerieSec.dir
+  OBJECT_FILE_DIR = CMakeFiles/MessagerieSec.dir
 
 
 # =============================================================================
@@ -69,7 +75,7 @@ build CMakeFiles/MessagerieSec.dir/Crypto/rsaEncryption.c.o: C_COMPILER__Message
 #############################################
 # Link the executable MessagerieSec
 
-build MessagerieSec: C_EXECUTABLE_LINKER__MessagerieSec_Debug CMakeFiles/MessagerieSec.dir/main.c.o CMakeFiles/MessagerieSec.dir/Crypto/rsaEncryption.c.o
+build MessagerieSec: C_EXECUTABLE_LINKER__MessagerieSec_Debug CMakeFiles/MessagerieSec.dir/Crypto/rsaEncryption.c.o CMakeFiles/MessagerieSec.dir/server.c.o CMakeFiles/MessagerieSec.dir/Client.c.o
   FLAGS = -g -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk
   OBJECT_DIR = CMakeFiles/MessagerieSec.dir
   POST_BUILD = :
