@@ -5,7 +5,6 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(MessagerieSec
         Crypto/rsaEncryption.c
-        Crypto/rsaEncryption.h
         Crypto/aesEncryption.cpp
         server.c
         Client.c)

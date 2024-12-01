@@ -1,0 +1,8 @@
+//
+// Created by Ugo WAREMBOURG on 01/12/2024.
+//
+
+#ifndef MESSAGERIESEC_SERVER_H
+#define MESSAGERIESEC_SERVER_H
+
+#endif //MESSAGERIESEC_SERVER_H
