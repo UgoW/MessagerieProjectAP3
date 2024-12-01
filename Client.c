@@ -22,7 +22,7 @@ void print_project_logo() {
     printf("Commands:\n");
     printf("  /msg   : Start messaging with other users.\n");
     printf("  /list  : List all connected users.\n");
-    printf("  EXIT   : Exit the application.\n\n");
+    printf("  /exit   : Exit the application.\n\n");
 }
 
 void send_to_server(const char *message) {
@@ -30,7 +30,7 @@ void send_to_server(const char *message) {
 }
 
 void handle_exit() {
-    send_to_server("EXIT\n");
+    send_to_server("exit\n");
     close(client_socket);
     exit(0);
 }
@@ -39,7 +39,7 @@ void handle_help() {
     printf("Commands:\n");
     printf("  /msg   : Start messaging with other users.\n");
     printf("  /list  : List all connected users.\n");
-    printf("  EXIT   : Exit the application.\n\n");
+    printf("  /exit   : Exit the application.\n\n");
 }
 
 void handle_list() {
@@ -47,12 +47,12 @@ void handle_list() {
 }
 
 void handle_command(const char *command) {
-    if (strncmp(command, "EXIT", 4) == 0) {
+    if (strncmp(command, "/exit", 4) == 0) {
         handle_exit();
     }
     else if (strncmp(command, "/msg", 4) == 0) {
         messaging_mode = 1;
-        send_to_server("\n/MSG");
+        send_to_server("\n/msg");
         printf("Messaging mode activated. Type your message to send to all connected users.\n");
     }
     else if (strncmp(command, "/list", 5) == 0) {
@@ -62,7 +62,6 @@ void handle_command(const char *command) {
         handle_help();
     }
 
-    // Si un simple retour a la ligne est entré
     else if (strlen(command) == 0) {
         return;
     }
@@ -107,10 +106,9 @@ int main() {
 
     printf("Enter your username: ");
     fgets(username, sizeof(username), stdin);
-    username[strcspn(username, "\n")] = '\0'; // Enlever le '\n'
+    username[strcspn(username, "\n")] = '\0';
     send(client_socket, username, strlen(username), 0);
 
-    // Affichage du logo et des informations sur les commandes
     print_project_logo();
 
     pthread_t recv_thread;
@@ -119,18 +117,18 @@ int main() {
     char input[BUFFER_SIZE];
     while (1) {
         if (messaging_mode) {
-            printf("> ");
+            printf("[MESSAGING MODE]@%s> ", username);
             fgets(input, sizeof(input), stdin);
             input[strcspn(input, "\n")] = '\0';
 
-            if (strcmp(input, "EXIT") == 0) {
+            if (strcmp(input, "/exit") == 0) {
                 handle_exit();
             } else {
                 send_to_server(input);
             }
         } else {
             // Linux terminal
-            printf("$");
+            printf("COMSEC@$%s> ", username);
             fgets(input, sizeof(input), stdin);
             input[strcspn(input, "\n")] = '\0';
             handle_command(input);

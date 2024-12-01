@@ -57,17 +57,11 @@ void list_users(int client_socket) {
 
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < client_count; i++) {
+        strcat(list_message, " -");
         strcat(list_message, clients[i].username);
-        strcat(list_message, " - ");
-        strcat(list_message, clients[i].ip_address);
-        strcat(list_message, ":");
-        char port_str[6];
-        snprintf(port_str, sizeof(port_str), "%d", clients[i].port);
-        strcat(list_message, port_str);
         strcat(list_message, "\n");
     }
     pthread_mutex_unlock(&clients_mutex);
-
     send(client_socket, list_message, strlen(list_message), 0);
 }
 
@@ -78,13 +72,11 @@ void *handle_client(void *arg) {
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
-    // Obtenir l'adresse IP et le port du client
     getpeername(client_socket, (struct sockaddr *)&client_addr, &addr_len);
     char ip_address[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, ip_address, INET_ADDRSTRLEN);
     int client_port = ntohs(client_addr.sin_port);
 
-    // Recevoir le nom d'utilisateur
     int bytes_received = recv(client_socket, username, sizeof(username) - 1, 0);
     if (bytes_received <= 0) {
         close(client_socket);
@@ -92,7 +84,6 @@ void *handle_client(void *arg) {
     }
     username[bytes_received] = '\0';
 
-    // Ajouter l'utilisateur à la liste des clients
     pthread_mutex_lock(&clients_mutex);
     strcpy(clients[client_count].username, username);
     clients[client_count].socket = client_socket;
@@ -113,9 +104,9 @@ void *handle_client(void *arg) {
         }
         buffer[bytes_received] = '\0';
 
-        if (strncmp(buffer, "EXIT", 4) == 0) {
+        if (strncmp(buffer, "/exit", 4) == 0) {
             break;
-        } else if (strncmp(buffer, "/MSG", 4) == 0) {
+        } else if (strncmp(buffer, "/msg", 4) == 0) {
             pthread_mutex_lock(&clients_mutex);
             for (int i = 0; i < client_count; i++) {
                 if (clients[i].socket == client_socket) {
@@ -125,9 +116,10 @@ void *handle_client(void *arg) {
             }
             pthread_mutex_unlock(&clients_mutex);
             notify_new_user(username);
-        } else if (strncmp(buffer, "LIST", 4) == 0) {
+        } else if (strncmp(buffer, "list", 4) == 0) {
             list_users(client_socket);
-        } else {
+        }
+        else {
             broadcast_message(username, buffer);
         }
     }
