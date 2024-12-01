@@ -11,6 +11,20 @@
 int client_socket;
 int messaging_mode = 0;
 
+void print_project_logo() {
+    printf("\n");
+    printf("  ____ ___  __  ____ ____  _____\n");
+    printf(" / ___/ _ \\/  |/  / _  _  \\/ _  \\\n");
+    printf("/ /__/ /_/ /|   / / /|  |/  __/\n");
+    printf("\\___/\\___/ |__| /_/ |_||_|\\___|\n");
+    printf("\n");
+    printf("Welcome to COMSEC! The secure communication system.\n\n");
+    printf("Commands:\n");
+    printf("  /msg   : Start messaging with other users.\n");
+    printf("  /list  : List all connected users.\n");
+    printf("  EXIT   : Exit the application.\n\n");
+}
+
 void send_to_server(const char *message) {
     send(client_socket, message, strlen(message), 0);
 }
@@ -21,8 +35,15 @@ void handle_exit() {
     exit(0);
 }
 
+void handle_help() {
+    printf("Commands:\n");
+    printf("  /msg   : Start messaging with other users.\n");
+    printf("  /list  : List all connected users.\n");
+    printf("  EXIT   : Exit the application.\n\n");
+}
+
 void handle_list() {
-    send_to_server("LIST\n");
+    send_to_server("list\n");
 }
 
 void handle_command(const char *command) {
@@ -32,12 +53,21 @@ void handle_command(const char *command) {
     else if (strncmp(command, "/msg", 4) == 0) {
         messaging_mode = 1;
         send_to_server("\n/MSG");
-        printf("\nMessaging mode activated. Type your message to send to all connected users.\n");
+        printf("Messaging mode activated. Type your message to send to all connected users.\n");
     }
-    else if (strncmp(command, "/LIST", 5) == 0) {
+    else if (strncmp(command, "/list", 5) == 0) {
         handle_list();
-    } else {
-        printf("Unknown command. Use /MSG to start messaging, /LIST to list users, or EXIT to leave.\n");
+
+    } else if (strncmp(command, "/help", 5) == 0) {
+        handle_help();
+    }
+
+    // Si un simple retour a la ligne est entré
+    else if (strlen(command) == 0) {
+        return;
+    }
+    else {
+        printf("Invalid command. Type /help to see the list of commands.\n");
     }
 }
 
@@ -59,6 +89,7 @@ int main() {
     struct sockaddr_in server_addr;
     char username[50];
 
+    // Connexion au serveur
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (client_socket < 0) {
         perror("Error creating socket");
@@ -76,8 +107,11 @@ int main() {
 
     printf("Enter your username: ");
     fgets(username, sizeof(username), stdin);
-    username[strcspn(username, "\n")] = '\0';
+    username[strcspn(username, "\n")] = '\0'; // Enlever le '\n'
     send(client_socket, username, strlen(username), 0);
+
+    // Affichage du logo et des informations sur les commandes
+    print_project_logo();
 
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, (void *)receive_messages, NULL);
@@ -95,7 +129,8 @@ int main() {
                 send_to_server(input);
             }
         } else {
-            printf("\nEnter command (/MSG to start messaging, /LIST to list users, EXIT to quit): ");
+            // Linux terminal
+            printf("$");
             fgets(input, sizeof(input), stdin);
             input[strcspn(input, "\n")] = '\0';
             handle_command(input);

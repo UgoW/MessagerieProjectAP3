@@ -105,10 +105,6 @@ void *handle_client(void *arg) {
     // Afficher les détails de la connexion
     printf("New connection: %s (%s:%d)\n", username, ip_address, client_port);
 
-    char welcome_message[BUFFER_SIZE];
-    sprintf(welcome_message, "Welcome %s! Use /MSG to chat, /LIST to see users, EXIT to leave.\n", username);
-    send(client_socket, welcome_message, strlen(welcome_message), 0);
-
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
         int bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
