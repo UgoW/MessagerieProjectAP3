@@ -10,6 +10,7 @@
 
 int client_socket;
 int messaging_mode = 0;
+int welcome_message_sent = 0;  // Flag pour éviter d'envoyer le message de bienvenue plusieurs fois
 
 void print_project_logo() {
     printf("\n");
@@ -22,7 +23,7 @@ void print_project_logo() {
     printf("Commands:\n");
     printf("  /msg   : Start messaging with other users.\n");
     printf("  /list  : List all connected users.\n");
-    printf("  /exit   : Exit the application.\n\n");
+    printf("  /exit  : Exit the application.\n\n");
 }
 
 void send_to_server(const char *message) {
@@ -30,7 +31,7 @@ void send_to_server(const char *message) {
 }
 
 void handle_exit() {
-    send_to_server("exit\n");
+    send_to_server("/exit\n");
     close(client_socket);
     exit(0);
 }
@@ -39,7 +40,7 @@ void handle_help() {
     printf("Commands:\n");
     printf("  /msg   : Start messaging with other users.\n");
     printf("  /list  : List all connected users.\n");
-    printf("  /exit   : Exit the application.\n\n");
+    printf("  /exit  : Exit the application.\n\n");
 }
 
 void handle_list() {
@@ -51,23 +52,25 @@ void handle_command(const char *command) {
         handle_exit();
     }
     else if (strncmp(command, "/msg", 4) == 0) {
-        messaging_mode = 1;
-        send_to_server("\n/msg");
-        printf("Messaging mode activated. Type your message to send to all connected users.\n");
+        if (!messaging_mode) { // Activation du mode messagerie si ce n'est pas déjà fait
+            messaging_mode = 1;
+            welcome_message_sent = 1;  // Assurer qu'on envoie le message de bienvenue une seule fois
+            send_to_server("/msg");
+            printf("Messaging mode activated. Type your message to send to all connected users.\n");
+        }
     }
     else if (strncmp(command, "/list", 5) == 0) {
         handle_list();
-
     } else if (strncmp(command, "/help", 5) == 0) {
         handle_help();
     }
-
     else if (strlen(command) == 0) {
         return;
     }
     else {
         printf("Invalid command. Type /help to see the list of commands.\n");
     }
+
 }
 
 void receive_messages() {
@@ -80,9 +83,10 @@ void receive_messages() {
             break;
         }
         buffer[bytes_received] = '\0';
-        printf("%s", buffer);
+        printf("%s\n", buffer);
     }
 }
+
 
 int main() {
     struct sockaddr_in server_addr;
@@ -117,17 +121,26 @@ int main() {
     char input[BUFFER_SIZE];
     while (1) {
         if (messaging_mode) {
+            if (!welcome_message_sent) {
+                // Le message de bienvenue n'est envoyé qu'une seule fois.
+                printf("User %s has joined the messaging mode.\n", username);
+                welcome_message_sent = 1;
+            }
+
             printf("[MESSAGING MODE]@%s> ", username);
             fgets(input, sizeof(input), stdin);
             input[strcspn(input, "\n")] = '\0';
 
             if (strcmp(input, "/exit") == 0) {
-                handle_exit();
+                // Sortir du mode de messagerie
+                messaging_mode = 0;
+                send_to_server("/exit");
+                printf("You have exited messaging mode.\n");
             } else {
                 send_to_server(input);
             }
         } else {
-            // Linux terminal
+            // Commande principale
             printf("COMSEC@$%s> ", username);
             fgets(input, sizeof(input), stdin);
             input[strcspn(input, "\n")] = '\0';

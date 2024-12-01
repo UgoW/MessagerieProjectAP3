@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.26)
-project(MessagerieSec C)
+project(MessagerieProjectAP3 C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(MessagerieSec
-        Crypto/rsaEncryption.c
-        Crypto/aesEncryption.cpp
-        server.c
-        Client.c)
+
+# Add exexutable client
+add_executable(client client.c)
+# Add executable server
+add_executable(server server.c)
+

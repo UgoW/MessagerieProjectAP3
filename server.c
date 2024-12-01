@@ -32,7 +32,7 @@ void broadcast_message(const char *sender, const char *message) {
 
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < client_count; i++) {
-        if (clients[i].in_messaging_mode) {
+        if (clients[i].in_messaging_mode && strcmp(clients[i].username, sender) != 0) {
             send(clients[i].socket, buffer, strlen(buffer), 0);
         }
     }
@@ -93,7 +93,6 @@ void *handle_client(void *arg) {
     client_count++;
     pthread_mutex_unlock(&clients_mutex);
 
-    // Afficher les détails de la connexion
     printf("New connection: %s (%s:%d)\n", username, ip_address, client_port);
 
     while (1) {
@@ -104,7 +103,7 @@ void *handle_client(void *arg) {
         }
         buffer[bytes_received] = '\0';
 
-        if (strncmp(buffer, "/exit", 4) == 0) {
+        if (strncmp(buffer, "/exit", 5) == 0) {
             break;
         } else if (strncmp(buffer, "/msg", 4) == 0) {
             pthread_mutex_lock(&clients_mutex);
@@ -118,8 +117,7 @@ void *handle_client(void *arg) {
             notify_new_user(username);
         } else if (strncmp(buffer, "list", 4) == 0) {
             list_users(client_socket);
-        }
-        else {
+        } else {
             broadcast_message(username, buffer);
         }
     }
@@ -144,11 +142,12 @@ void *handle_client(void *arg) {
 int main() {
     int server_socket, client_socket;
     struct sockaddr_in server_addr, client_addr;
-    socklen_t client_len = sizeof(client_addr);
+    socklen_t addr_len = sizeof(client_addr);
 
+    // Création du socket serveur
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
-        perror("Error creating socket");
+        perror("Error creating server socket");
         exit(1);
     }
 
@@ -157,23 +156,28 @@ int main() {
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Error binding socket");
+        perror("Bind failed");
+        close(server_socket);
         exit(1);
     }
 
-    listen(server_socket, 5);
-    printf("Server listening on port 8080...\n");
+    if (listen(server_socket, MAX_CLIENTS) < 0) {
+        perror("Listen failed");
+        close(server_socket);
+        exit(1);
+    }
+
+    printf("Server is running on port 8080...\n");
 
     while (1) {
-        client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+        client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
         if (client_socket < 0) {
-            perror("Error accepting connection");
+            perror("Accept failed");
             continue;
         }
 
-        pthread_t thread_id;
-        pthread_create(&thread_id, NULL, handle_client, &client_socket);
-        pthread_detach(thread_id);
+        pthread_t tid;
+        pthread_create(&tid, NULL, handle_client, (void *)&client_socket);
     }
 
     close(server_socket);
