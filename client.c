@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <time.h>
+#include <sys/select.h>
 
 #define BUFFER_SIZE 1024
 
@@ -70,23 +71,28 @@ void handle_command(const char *command) {
     else {
         printf("Invalid command. Type /help to see the list of commands.\n");
     }
-
 }
 
 void receive_messages() {
     char buffer[BUFFER_SIZE];
-    int bytes_received;
     while (1) {
-        memset(buffer, 0, sizeof(buffer));
-        bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+        memset(buffer, 0, BUFFER_SIZE);
+        int bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
         if (bytes_received <= 0) {
             break;
         }
         buffer[bytes_received] = '\0';
-        printf("%s\n", buffer);
+
+        if (strncmp(buffer, "/exit", 5) == 0) {
+            printf("You have exited messaging mode.\n");
+            messaging_mode = 0;
+        } else {
+            // Affichage immédiat du message reçu
+            printf("\n%s\n[MESSAGING MODE]@> ", buffer);  // On ajoute un saut de ligne avant chaque message
+            fflush(stdout);  // Assurez-vous que la sortie est immédiatement écrite
+        }
     }
 }
-
 
 int main() {
     struct sockaddr_in server_addr;
@@ -115,36 +121,54 @@ int main() {
 
     print_project_logo();
 
+    // Créer un thread pour recevoir les messages du serveur
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, (void *)receive_messages, NULL);
 
     char input[BUFFER_SIZE];
+    fd_set read_fds;
     while (1) {
-        if (messaging_mode) {
-            if (!welcome_message_sent) {
-                // Le message de bienvenue n'est envoyé qu'une seule fois.
-                printf("User %s has joined the messaging mode.\n", username);
-                welcome_message_sent = 1;
+        FD_ZERO(&read_fds);
+        FD_SET(STDIN_FILENO, &read_fds);  // Ajout de l'entrée standard (stdin) pour détecter l'entrée de l'utilisateur
+        FD_SET(client_socket, &read_fds); // Ajout du socket pour détecter les messages entrants
+
+        // Utilisation de select pour gérer les entrées et sorties simultanées
+        int max_fd = (client_socket > STDIN_FILENO) ? client_socket : STDIN_FILENO;
+        int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+
+        if (activity < 0) {
+            perror("select error");
+            exit(1);
+        }
+
+        if (FD_ISSET(STDIN_FILENO, &read_fds)) {
+            // L'utilisateur entre une commande ou un message
+            if (messaging_mode) {
+                printf("[MESSAGING MODE]@%s> ", username);
+            } else {
+                printf("COMSEC@$%s> ", username);
             }
 
-            printf("[MESSAGING MODE]@%s> ", username);
             fgets(input, sizeof(input), stdin);
             input[strcspn(input, "\n")] = '\0';
 
-            if (strcmp(input, "/exit") == 0) {
+            if (messaging_mode && strcmp(input, "/exit") == 0) {
                 // Sortir du mode de messagerie
                 messaging_mode = 0;
                 send_to_server("/exit");
                 printf("You have exited messaging mode.\n");
-            } else {
+            } else if (messaging_mode) {
+                // Envoi d'un message en mode messagerie
                 send_to_server(input);
+            } else {
+                // Commande principale
+                handle_command(input);
             }
-        } else {
-            // Commande principale
-            printf("COMSEC@$%s> ", username);
-            fgets(input, sizeof(input), stdin);
-            input[strcspn(input, "\n")] = '\0';
-            handle_command(input);
+        }
+
+        if (FD_ISSET(client_socket, &read_fds)) {
+            // Le serveur a envoyé un message
+            // Cela est déjà géré par le thread de réception des messages, donc rien à faire ici
         }
     }
 
