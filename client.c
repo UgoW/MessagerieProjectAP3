@@ -6,6 +6,8 @@
 #include <pthread.h>
 #include <time.h>
 #include <sys/select.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
 
 #define BUFFER_SIZE 1024
 
@@ -92,7 +94,11 @@ void receive_messages() {
     }
 }
 
+
 int main() {
+    // Example openssl code
+
+
     struct sockaddr_in server_addr;
     char username[50];
 

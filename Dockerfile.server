@@ -1,7 +1,8 @@
 FROM fedora:38
 
 RUN dnf update -y && \
-    dnf install -y gcc make && \
+    dnf install -y gcc make openssl openssl-devel && \
+    dnf install -y nano && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 
@@ -9,6 +10,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN gcc server.c -o server && gcc client.c -o client
+RUN gcc server.c -o server -lssl -lcrypto && gcc client.c -o client -lssl -lcrypto
 
 CMD ["/bin/bash"]
