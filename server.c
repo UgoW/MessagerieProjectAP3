@@ -23,13 +23,7 @@ pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void broadcast_message(const char *sender, const char *message) {
     char buffer[BUFFER_SIZE];
-    time_t now = time(NULL);
-    struct tm *timeinfo = localtime(&now);
-    char timestamp[6];
-    strftime(timestamp, sizeof(timestamp), "%H:%M", timeinfo);
-
-    snprintf(buffer, sizeof(buffer), "%s %s: %s\n", timestamp, sender, message);
-
+    snprintf(buffer, sizeof(buffer), "[MESSAGING MODE]>%s: %s", sender, message);
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < client_count; i++) {
         if (clients[i].in_messaging_mode && strcmp(clients[i].username, sender) != 0) {
@@ -41,8 +35,7 @@ void broadcast_message(const char *sender, const char *message) {
 
 void notify_new_user(const char *username) {
     char notification[BUFFER_SIZE];
-    snprintf(notification, sizeof(notification), "User %s has joined the messaging mode.\n", username);
-
+    snprintf(notification, sizeof(notification), "%s has joined the messaging mode.\n", username);
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < client_count; i++) {
         if (clients[i].in_messaging_mode) {
@@ -57,7 +50,7 @@ void list_users(int client_socket) {
 
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < client_count; i++) {
-        strcat(list_message, " -");
+        strcat(list_message, "-");
         strcat(list_message, clients[i].username);
         strcat(list_message, "\n");
     }
@@ -122,7 +115,6 @@ void *handle_client(void *arg) {
         }
     }
 
-    // Retirer le client de la liste des clients
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < client_count; i++) {
         if (clients[i].socket == client_socket) {
@@ -144,7 +136,6 @@ int main() {
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
-    // Création du socket serveur
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
         perror("Error creating server socket");

@@ -1,0 +1,14 @@
+FROM fedora:38
+
+RUN dnf update -y && \
+    dnf install -y gcc make && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+
+WORKDIR /app
+
+COPY . .
+
+RUN gcc server.c -o server && gcc client.c -o client
+
+CMD ["/bin/bash"]

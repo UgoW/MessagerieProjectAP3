@@ -1,0 +1,30 @@
+services:
+  serveur:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: server
+    ports:
+      - "8080:8080"
+    networks:
+      messagerie_network:
+        ipv4_address: 172.28.0.2
+    command: tail -f /dev/null
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: client
+    networks:
+      messagerie_network:
+        ipv4_address: 172.28.0.3
+    command: tail -f /dev/null
+
+networks:
+  messagerie_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.28.0.0/16"
+

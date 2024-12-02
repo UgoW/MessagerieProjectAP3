@@ -11,7 +11,7 @@
 
 int client_socket;
 int messaging_mode = 0;
-int welcome_message_sent = 0;  // Flag pour éviter d'envoyer le message de bienvenue plusieurs fois
+int welcome_message_sent = 0;
 
 void print_project_logo() {
     printf("\n");
@@ -41,7 +41,7 @@ void handle_help() {
     printf("Commands:\n");
     printf("  /msg   : Start messaging with other users.\n");
     printf("  /list  : List all connected users.\n");
-    printf("  /exit  : Exit the application.\n\n");
+    printf("  /exit  : Exit the application.\n");
 }
 
 void handle_list() {
@@ -53,9 +53,9 @@ void handle_command(const char *command) {
         handle_exit();
     }
     else if (strncmp(command, "/msg", 4) == 0) {
-        if (!messaging_mode) { // Activation du mode messagerie si ce n'est pas déjà fait
+        if (!messaging_mode) {
             messaging_mode = 1;
-            welcome_message_sent = 1;  // Assurer qu'on envoie le message de bienvenue une seule fois
+            welcome_message_sent = 1;
             send_to_server("/msg");
             printf("Messaging mode activated. Type your message to send to all connected users.\n");
         }
@@ -84,12 +84,10 @@ void receive_messages() {
         buffer[bytes_received] = '\0';
 
         if (strncmp(buffer, "/exit", 5) == 0) {
-            printf("You have exited messaging mode.\n");
             messaging_mode = 0;
         } else {
-            // Affichage immédiat du message reçu
-            printf("\n%s\n[MESSAGING MODE]@> ", buffer);  // On ajoute un saut de ligne avant chaque message
-            fflush(stdout);  // Assurez-vous que la sortie est immédiatement écrite
+            printf("\n%s\n[MESSAGING MODE]> ", buffer);
+            fflush(stdout);
         }
     }
 }
@@ -98,16 +96,14 @@ int main() {
     struct sockaddr_in server_addr;
     char username[50];
 
-    // Connexion au serveur
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (client_socket < 0) {
         perror("Error creating socket");
         exit(1);
     }
-
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(8080);
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server_addr.sin_addr.s_addr = inet_addr("172.28.0.2");
 
     if (connect(client_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Error connecting to server");
@@ -121,7 +117,6 @@ int main() {
 
     print_project_logo();
 
-    // Créer un thread pour recevoir les messages du serveur
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, (void *)receive_messages, NULL);
 
@@ -129,10 +124,9 @@ int main() {
     fd_set read_fds;
     while (1) {
         FD_ZERO(&read_fds);
-        FD_SET(STDIN_FILENO, &read_fds);  // Ajout de l'entrée standard (stdin) pour détecter l'entrée de l'utilisateur
-        FD_SET(client_socket, &read_fds); // Ajout du socket pour détecter les messages entrants
+        FD_SET(STDIN_FILENO, &read_fds);
+        FD_SET(client_socket, &read_fds);
 
-        // Utilisation de select pour gérer les entrées et sorties simultanées
         int max_fd = (client_socket > STDIN_FILENO) ? client_socket : STDIN_FILENO;
         int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
 
@@ -142,9 +136,8 @@ int main() {
         }
 
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-            // L'utilisateur entre une commande ou un message
             if (messaging_mode) {
-                printf("[MESSAGING MODE]@%s> ", username);
+                printf("[MESSAGING MODE]> ");
             } else {
                 printf("COMSEC@$%s> ", username);
             }
@@ -153,22 +146,14 @@ int main() {
             input[strcspn(input, "\n")] = '\0';
 
             if (messaging_mode && strcmp(input, "/exit") == 0) {
-                // Sortir du mode de messagerie
                 messaging_mode = 0;
                 send_to_server("/exit");
                 printf("You have exited messaging mode.\n");
             } else if (messaging_mode) {
-                // Envoi d'un message en mode messagerie
                 send_to_server(input);
             } else {
-                // Commande principale
                 handle_command(input);
             }
-        }
-
-        if (FD_ISSET(client_socket, &read_fds)) {
-            // Le serveur a envoyé un message
-            // Cela est déjà géré par le thread de réception des messages, donc rien à faire ici
         }
     }
 
