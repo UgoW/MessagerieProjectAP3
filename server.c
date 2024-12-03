@@ -6,12 +6,6 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-// A supprimer :)
-#include "Includes/aesEncryption.h"
-#include "Includes/rsaEncryption.h"
-
-//
-
 #define MAX_CLIENTS 100
 #define BUFFER_SIZE 1024
 
@@ -138,36 +132,6 @@ void *handle_client(void *arg) {
 }
 
 int main() {
-
-    // A supprimer :)
-
-    unsigned char aes_key[AES_KEY_SIZE];
-    unsigned char iv[AES_BLOCK_SIZE];
-    unsigned char plaintext[] = "Hello, AES and RSA!";
-    unsigned char aes_ciphertext[128];
-    unsigned char aes_decrypted[128];
-
-    generate_aes_key_and_iv(aes_key, iv);
-    aes_encrypt(plaintext, strlen((char *)plaintext), aes_key, iv, aes_ciphertext);
-    aes_decrypt(aes_ciphertext, strlen((char *)plaintext), aes_key, iv, aes_decrypted);
-    printf("AES Decrypted: %s\n", aes_decrypted);
-
-    // === RSA ===
-    RSA *rsa_key = generate_rsa_keys();
-    unsigned char rsa_ciphertext[256];
-    int rsa_ciphertext_len;
-    unsigned char rsa_decrypted[256];
-    int rsa_decrypted_len;
-
-    rsa_encrypt(rsa_key, plaintext, strlen((char *)plaintext), rsa_ciphertext, &rsa_ciphertext_len);
-    rsa_decrypt(rsa_key, rsa_ciphertext, rsa_ciphertext_len, rsa_decrypted, &rsa_decrypted_len);
-    rsa_decrypted[rsa_decrypted_len] = '\0';
-    printf("RSA Decrypted: %s\n", rsa_decrypted);
-
-
-
-
-    //
     int server_socket, client_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
