@@ -170,7 +170,6 @@ int main() {
         pthread_t tid;
         pthread_create(&tid, NULL, handle_client, (void *)&client_socket);
     }
-
     close(server_socket);
     return 0;
 }

@@ -1,34 +1,50 @@
-//
-// Created by Ugo WAREMBOURG on 28/11/2024.
-//
-
-#include "../Includes/rsaEncryption.h"
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/bn.h>
+#include <openssl/rand.h>
+#include <openssl/err.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-RSA* generate_rsa_keys() {
-    RSA *key = RSA_new();
-    BIGNUM *e = BN_new();
-    BN_set_word(e, RSA_F4);
+#define RSA_KEY_BITS 2048    // Taille de la clé RSA (bits)
 
-    RSA_generate_key_ex(key, RSA_KEY_BITS, e, NULL);
-    BN_free(e);
-
-    return key;
-}
-
-void rsa_encrypt(RSA *key, const unsigned char *plaintext, int plaintext_len, unsigned char *ciphertext, int *ciphertext_len) {
-    *ciphertext_len = RSA_public_encrypt(plaintext_len, plaintext, ciphertext, key, RSA_PKCS1_OAEP_PADDING);
-    if (*ciphertext_len == -1) {
+void rsa_encrypt(EVP_PKEY *key, const unsigned char *plaintext, int plaintext_len, unsigned char *ciphertext, int *ciphertext_len) {
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(key, NULL);
+    if (!ctx) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-}
 
-void rsa_decrypt(RSA *key, const unsigned char *ciphertext, int ciphertext_len, unsigned char *plaintext, int *plaintext_len) {
-    *plaintext_len = RSA_private_decrypt(ciphertext_len, ciphertext, plaintext, key, RSA_PKCS1_OAEP_PADDING);
-    if (*plaintext_len == -1) {
+    if (EVP_PKEY_encrypt_init(ctx) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
+
+    if (EVP_PKEY_encrypt(ctx, ciphertext, (size_t *)ciphertext_len, plaintext, plaintext_len) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    EVP_PKEY_CTX_free(ctx);
+}
+
+void rsa_decrypt(EVP_PKEY *key, const unsigned char *ciphertext, int ciphertext_len, unsigned char *plaintext, int *plaintext_len) {
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(key, NULL);
+    if (!ctx) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    if (EVP_PKEY_decrypt_init(ctx) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    if (EVP_PKEY_decrypt(ctx, plaintext, (size_t *)plaintext_len, ciphertext, ciphertext_len) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    EVP_PKEY_CTX_free(ctx);
 }
