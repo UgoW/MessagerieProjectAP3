@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <arpa/inet.h>
-#include <time.h>
 
 #define MAX_CLIENTS 100
 #define BUFFER_SIZE 1024
@@ -17,51 +16,39 @@ typedef struct {
     int in_messaging_mode;
 } Client;
 
+struct message {
+    char sender[50];
+    char message[BUFFER_SIZE];
+    int type;
+    int length;
+} message;
+
+// Structure pour renvoyer les clients
+typedef struct {
+    int client_count;
+    Client clients[MAX_CLIENTS];
+    int length;
+} ClientList;
+
+
 Client clients[MAX_CLIENTS];
 int client_count = 0;
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void broadcast_message(const char *sender, const char *message) {
-    char buffer[BUFFER_SIZE];
-    snprintf(buffer, sizeof(buffer), "[MESSAGING MODE]>%s: %s", sender, message);
-    pthread_mutex_lock(&clients_mutex);
-    for (int i = 0; i < client_count; i++) {
-        if (clients[i].in_messaging_mode && strcmp(clients[i].username, sender) != 0) {
-            send(clients[i].socket, buffer, strlen(buffer), 0);
-        }
-    }
-    pthread_mutex_unlock(&clients_mutex);
-}
-
-void notify_new_user(const char *username) {
-    char notification[BUFFER_SIZE];
-    snprintf(notification, sizeof(notification), "%s has joined the messaging mode.\n", username);
-    pthread_mutex_lock(&clients_mutex);
-    for (int i = 0; i < client_count; i++) {
-        if (clients[i].in_messaging_mode) {
-            send(clients[i].socket, notification, strlen(notification), 0);
-        }
-    }
-    pthread_mutex_unlock(&clients_mutex);
-}
-
 void list_users(int client_socket) {
-    char list_message[BUFFER_SIZE] = "Connected users:\n";
-
-    pthread_mutex_lock(&clients_mutex);
+    // send to user list of users
+    ClientList clientList;
+    clientList.client_count = client_count;
     for (int i = 0; i < client_count; i++) {
-        strcat(list_message, "-");
-        strcat(list_message, clients[i].username);
-        strcat(list_message, "\n");
+        clientList.clients[i] = clients[i];
     }
-    pthread_mutex_unlock(&clients_mutex);
-    send(client_socket, list_message, strlen(list_message), 0);
+    clientList.length = sizeof(clientList);
+    send(client_socket, &clientList, sizeof(ClientList), 0);
+
 }
 
 void *handle_client(void *arg) {
     int client_socket = *(int *)arg;
-    char buffer[BUFFER_SIZE];
-    char username[50];
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
@@ -70,6 +57,7 @@ void *handle_client(void *arg) {
     inet_ntop(AF_INET, &client_addr.sin_addr, ip_address, INET_ADDRSTRLEN);
     int client_port = ntohs(client_addr.sin_port);
 
+    char username[50];
     int bytes_received = recv(client_socket, username, sizeof(username) - 1, 0);
     if (bytes_received <= 0) {
         close(client_socket);
@@ -89,30 +77,19 @@ void *handle_client(void *arg) {
     printf("New connection: %s (%s:%d)\n", username, ip_address, client_port);
 
     while (1) {
-        memset(buffer, 0, BUFFER_SIZE);
-        int bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
+        int bytes_received = recv(client_socket, &message, sizeof(message), 0);
         if (bytes_received <= 0) {
             break;
         }
-        buffer[bytes_received] = '\0';
-
-        if (strncmp(buffer, "/exit", 5) == 0) {
-            break;
-        } else if (strncmp(buffer, "/msg", 4) == 0) {
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < client_count; i++) {
-                if (clients[i].socket == client_socket) {
-                    clients[i].in_messaging_mode = 1;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-            notify_new_user(username);
-        } else if (strncmp(buffer, "list", 4) == 0) {
+        printf("[DEBUG] Received message from %s: %s (%d)\n", message.sender, message.message, message.length);
+        if (strcmp(message.message, "/list") == 0) {
             list_users(client_socket);
-        } else {
-            broadcast_message(username, buffer);
+            continue;
         }
+        else if (strcmp(message.message, "/exit") == 0) {
+            break;
+        }
+
     }
 
     pthread_mutex_lock(&clients_mutex);
@@ -170,6 +147,7 @@ int main() {
         pthread_t tid;
         pthread_create(&tid, NULL, handle_client, (void *)&client_socket);
     }
+
     close(server_socket);
     return 0;
 }
