@@ -1,50 +1,28 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <arpa/inet.h>
 
-#define MAX_CLIENTS 100
-#define BUFFER_SIZE 1024
-
-typedef struct {
-    int socket;
-    char username[50];
-    char ip_address[INET_ADDRSTRLEN];
-    int port;
-    int in_messaging_mode;
-} Client;
-
-struct message {
-    char sender[50];
-    char message[BUFFER_SIZE];
-    int type;
-    int length;
-} message;
-
-// Structure pour renvoyer les clients
-typedef struct {
-    int client_count;
-    Client clients[MAX_CLIENTS];
-    int length;
-} ClientList;
-
-
-Client clients[MAX_CLIENTS];
-int client_count = 0;
-pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+#include "Includes/server.h"
 
 void list_users(int client_socket) {
-    // send to user list of users
-    ClientList clientList;
-    clientList.client_count = client_count;
+    DataPacket dataPacket;
+    dataPacket.type = LIST;
+    dataPacket.data.clientList.client_count = client_count;
     for (int i = 0; i < client_count; i++) {
-        clientList.clients[i] = clients[i];
+        dataPacket.data.clientList.clients[i] = clients[i];
     }
-    clientList.length = sizeof(clientList);
-    send(client_socket, &clientList, sizeof(ClientList), 0);
+    dataPacket.data.clientList.length = sizeof(dataPacket.data.clientList);
+    send(client_socket, &dataPacket, sizeof(DataPacket), 0);
+}
 
+void broadcast_message(const char *sender, const char *message) {
+    DataPacket dataPacket;
+    dataPacket.type = MESSAGE;
+    strcpy(dataPacket.data.message.sender, sender);
+    strcpy(dataPacket.data.message.message, message);
+    dataPacket.data.message.length = sizeof(dataPacket.data.message);
+    for (int i = 0; i < client_count; i++) {
+        if (clients[i].in_messaging_mode && strcmp(clients[i].username, sender) != 0) {
+            send(clients[i].socket, &dataPacket, sizeof(DataPacket), 0);
+        }
+    }
 }
 
 void *handle_client(void *arg) {
@@ -77,11 +55,14 @@ void *handle_client(void *arg) {
     printf("New connection: %s (%s:%d)\n", username, ip_address, client_port);
 
     while (1) {
+        Message message;
         int bytes_received = recv(client_socket, &message, sizeof(message), 0);
         if (bytes_received <= 0) {
             break;
         }
+
         printf("[DEBUG] Received message from %s: %s (%d)\n", message.sender, message.message, message.length);
+
         if (strcmp(message.message, "/list") == 0) {
             list_users(client_socket);
             continue;
@@ -89,7 +70,19 @@ void *handle_client(void *arg) {
         else if (strcmp(message.message, "/exit") == 0) {
             break;
         }
-
+        else if (strcmp(message.message, "/msg") == 0) {
+            pthread_mutex_lock(&clients_mutex);
+            for (int i = 0; i < client_count; i++) {
+                if (strcmp(clients[i].username, message.sender) == 0) {
+                    clients[i].in_messaging_mode = 1;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&clients_mutex);
+        }
+        else if (message.type == 0) {
+            broadcast_message(message.sender, message.message);
+        }
     }
 
     pthread_mutex_lock(&clients_mutex);

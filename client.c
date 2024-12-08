@@ -1,40 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <pthread.h>
-
-#define BUFFER_SIZE 1024
-#define MAX_CLIENTS 100
-int client_socket;
-
-typedef struct {
-    int socket;
-    char username[50];
-    char ip_address[INET_ADDRSTRLEN];
-    int port;
-    int in_messaging_mode;
-} Client;
-
-// Message structure
-typedef struct {
-    char sender[50];
-    char message[BUFFER_SIZE];
-    int type;  // 0 MESSAGE // 1 COMMAND
-    int length;
-} Message;
-
-typedef struct {
-    int client_count;
-    Client clients[MAX_CLIENTS];
-    int length;
-} ClientList;
-
-// Sync mutex and condition
-pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t list_received_cond = PTHREAD_COND_INITIALIZER;
-int is_list_received = 0;
+#include "Includes/client.h"
 
 void print_project_logo() {
     pthread_mutex_lock(&print_mutex);
@@ -75,11 +39,10 @@ void handle_exit(Message *msg) {
     exit(0);
 }
 
-// Receive messages
 void receive_messages() {
-    ClientList clientList;
+    DataPacket dataPacket;
     while (1) {
-        int bytes_received = recv(client_socket, &clientList, sizeof(ClientList), 0);
+        int bytes_received = recv(client_socket, &dataPacket, sizeof(DataPacket), 0);
         if (bytes_received <= 0) {
             break;
         }
@@ -87,23 +50,32 @@ void receive_messages() {
         // Lock before printing
         pthread_mutex_lock(&print_mutex);
 
-        printf("Received list of users\n");
-        for (int i = 0; i < clientList.client_count; i++) {
-            printf("%s\t%s:%d\n", clientList.clients[i].username, clientList.clients[i].ip_address,
-                   clientList.clients[i].port);
+        if (dataPacket.type == LIST) {
+            printf("Received list of users\n");
+            for (int i = 0; i < dataPacket.data.clientList.client_count; i++) {
+                printf("%s\t%s:%d\n", dataPacket.data.clientList.clients[i].username, dataPacket.data.clientList.clients[i].ip_address,
+                       dataPacket.data.clientList.clients[i].port);
+            }
+
+            // Switch the flag to indicate that the list is received
+            is_list_received = 1;
+
+            // Wake up the main thread
+            pthread_cond_signal(&list_received_cond);
         }
 
-        // Switch the flag to indicate that the list is received
-        is_list_received = 1;
-
-        // Wake up the main thread
-        pthread_cond_signal(&list_received_cond);
+        if (dataPacket.type == MESSAGE) {
+            printf("[%s]> %s\n", dataPacket.data.message.sender, dataPacket.data.message.message);
+        }
 
         pthread_mutex_unlock(&print_mutex);  // Unlock after printing
     }
 }
 
 void handle_msg_command(Message *msg) {
+    if (!messaging_mode) {
+        messaging_mode = 1;
+    }
     msg->type = 1;
     send_message(client_socket, msg);
 }
@@ -147,7 +119,13 @@ int main() {
 
     while (1) {
         pthread_mutex_lock(&print_mutex);
-        printf("[%s@COMSEC]$ ", username);
+
+        if (messaging_mode) {
+            printf("#> ", username);
+        } else {
+            printf("[%s@COMSEC]$ ", username);
+        }
+
         pthread_mutex_unlock(&print_mutex);
 
         strcpy(message.sender, username);
@@ -165,6 +143,11 @@ int main() {
         }
         else if (strcmp(message.message, "/msg") == 0) {
             handle_msg_command(&message);
+        }
+        else if (messaging_mode) {
+            message.type = 0;
+            send_message(client_socket, &message);
+
         }
         else {
             printf("Invalid command\n");
