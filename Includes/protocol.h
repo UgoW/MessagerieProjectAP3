@@ -16,7 +16,6 @@ typedef struct {
     int in_messaging_mode;
 } Client;
 
-// Message structure
 typedef struct {
     char sender[50];
     char message[BUFFER_SIZE];

@@ -17,8 +17,6 @@ Client clients[MAX_CLIENTS];
 int client_count = 0;
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// Prototypes for server functions
-
 /**
  * \brief Lists all connected users.
  *
