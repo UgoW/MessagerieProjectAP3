@@ -1,0 +1,9 @@
+#TO DO 
+
+- Channel JOIN CREATE LEAVE 
+- Channel LIST
+
+// 
+- CLEAN CODE 
+- TEMP MESSAGE
+

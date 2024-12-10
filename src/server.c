@@ -1,13 +1,14 @@
 
-#include "Includes/server.h"
+#include "../Includes/server.h"
 
 void list_users(int client_socket) {
     DataPacket dataPacket;
-    dataPacket.type = LIST;
+    dataPacket.type = CLIST;
     dataPacket.data.clientList.client_count = client_count;
     for (int i = 0; i < client_count; i++) {
         dataPacket.data.clientList.clients[i] = clients[i];
     }
+    strcpy(dataPacket.data.clientList.title, "List of connected users");
     dataPacket.data.clientList.length = sizeof(dataPacket.data.clientList);
     send(client_socket, &dataPacket, sizeof(DataPacket), 0);
 }
@@ -23,6 +24,13 @@ void broadcast_message(const char *sender, const char *message) {
             send(clients[i].socket, &dataPacket, sizeof(DataPacket), 0);
         }
     }
+}
+
+void send_state_packet(int client_socket, int state) {
+    DataPacket dataPacket;
+    dataPacket.type = STATE;
+    dataPacket.data.state = state;
+    send(client_socket, &dataPacket, sizeof(DataPacket), 0);
 }
 
 void *handle_client(void *arg) {
@@ -61,16 +69,19 @@ void *handle_client(void *arg) {
             break;
         }
 
-        printf("[DEBUG] Received message from %s: %s (%d)\n", message.sender, message.message, message.length);
+        printf("[LOG] Received message from %s: %s (%d)\n", message.sender, message.message, message.length);
 
         if (strcmp(message.message, "/list") == 0) {
+            send_state_packet(client_socket, 1);
             list_users(client_socket);
             continue;
         }
         else if (strcmp(message.message, "/exit") == 0) {
+            send_state_packet(client_socket, 1);
             break;
         }
         else if (strcmp(message.message, "/msg") == 0) {
+            send_state_packet(client_socket, 1);
             pthread_mutex_lock(&clients_mutex);
             for (int i = 0; i < client_count; i++) {
                 if (strcmp(clients[i].username, message.sender) == 0) {
@@ -81,7 +92,11 @@ void *handle_client(void *arg) {
             pthread_mutex_unlock(&clients_mutex);
         }
         else if (message.type == 0) {
+            send_state_packet(client_socket, 1);
             broadcast_message(message.sender, message.message);
+        }
+        else {
+            send_state_packet(client_socket, 0);
         }
     }
 

@@ -20,24 +20,27 @@ typedef struct {
 typedef struct {
     char sender[50];
     char message[BUFFER_SIZE];
-    int type;  // 0 MESSAGE // 1 COMMAND
+    int type;
     int length;
 } Message;
 
 typedef struct {
     int client_count;
+    char title[50];
     Client clients[MAX_CLIENTS];
     int length;
 } ClientList;
 
 typedef enum {
-    LIST,
+    CLIST,
     MESSAGE,
+    STATE,
 } DATA_TYPE;
 
 typedef union {
     ClientList clientList;
     Message  message;
+    int state;
 } Data;
 
 typedef struct {
