@@ -33,6 +33,96 @@ void send_state_packet(int client_socket, int state) {
     send(client_socket, &dataPacket, sizeof(DataPacket), 0);
 }
 
+int parse_command(const char* input, char** command, char*** args) {
+    char* input_copy = strdup(input);
+    if (!input_copy) {
+        return -1;
+    }
+    char* token = strtok(input_copy, " ");
+    if (token == NULL) {
+        free(input_copy);
+        return -1;
+    }
+
+    *command = strdup(token);
+
+    int arg_count = 0;
+    char** arguments = malloc(sizeof(char*));
+    if (!arguments) {
+        free(input_copy);
+        return -1;
+    }
+
+    while ((token = strtok(NULL, " ")) != NULL) {
+        arguments[arg_count] = strdup(token);
+        arg_count++;
+        arguments = realloc(arguments, sizeof(char*) * (arg_count + 1));
+    }
+
+    *args = arguments;
+    free(input_copy);
+
+    return arg_count;
+}
+
+void free_arguments(char** args, int arg_count) {
+    for (int i = 0; i < arg_count; i++) {
+        free(args[i]);
+    }
+    free(args);
+}
+
+void handle_command(int client_socket, Message message) {
+    char* command = NULL;
+    char** args = NULL;
+
+    int arg_count = parse_command(message.message, &command, &args);
+
+    if (arg_count >= 0) {
+        if ((strcmp(command, "/list") == 0 || strcmp(command, "/msg") == 0) && arg_count > 0) {
+            send_state_packet(client_socket, 0);
+        }
+        else if (strcmp(command, "/list") == 0) {
+            send_state_packet(client_socket, 1);
+            list_users(client_socket);
+        }
+        else if (strcmp(command, "/exit") == 0) {
+            send_state_packet(client_socket, 1);
+
+        }
+        else if (strcmp(command, "/msg") == 0) {
+            send_state_packet(client_socket, 1);
+            pthread_mutex_lock(&clients_mutex);
+            for (int i = 0; i < client_count; i++) {
+                if (strcmp(clients[i].username, message.sender) == 0) {
+                    clients[i].in_messaging_mode = 1;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&clients_mutex);
+        } else if (strcmp(command, "/create") == 0) {
+            if (arg_count == 1) {
+                char* arg1 = args[0];
+                send_state_packet(client_socket, 1);
+            }
+            else {
+                send_state_packet(client_socket, 0);
+
+            }
+        } else if (message.type == 0) {
+            send_state_packet(client_socket, 1);
+            broadcast_message(message.sender, message.message);
+        } else {
+            send_state_packet(client_socket, 0);
+        }
+
+        free(command);
+        free_arguments(args, arg_count);
+    } else {
+        send_state_packet(client_socket, 0);
+    }
+}
+
 void *handle_client(void *arg) {
     int client_socket = *(int *)arg;
     struct sockaddr_in client_addr;
@@ -71,33 +161,9 @@ void *handle_client(void *arg) {
 
         printf("[LOG] Received message from %s: %s (%d)\n", message.sender, message.message, message.length);
 
-        if (strcmp(message.message, "/list") == 0) {
-            send_state_packet(client_socket, 1);
-            list_users(client_socket);
-            continue;
-        }
-        else if (strcmp(message.message, "/exit") == 0) {
-            send_state_packet(client_socket, 1);
-            break;
-        }
-        else if (strcmp(message.message, "/msg") == 0) {
-            send_state_packet(client_socket, 1);
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < client_count; i++) {
-                if (strcmp(clients[i].username, message.sender) == 0) {
-                    clients[i].in_messaging_mode = 1;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-        }
-        else if (message.type == 0) {
-            send_state_packet(client_socket, 1);
-            broadcast_message(message.sender, message.message);
-        }
-        else {
-            send_state_packet(client_socket, 0);
-        }
+        handle_command(client_socket, message);
+
+
     }
 
     pthread_mutex_lock(&clients_mutex);

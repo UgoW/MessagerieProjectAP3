@@ -10,8 +10,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN gcc src/server.c src/aesEncryption.c src/rsaEncryption.c -o server -lssl -lcrypto && \
-    gcc src/client.c src/aesEncryption.c src/rsaEncryption.c -o client -lssl -lcrypto
+RUN gcc src/server.c  -o server -lssl -lcrypto && \
+    gcc src/client.c -o client -lssl -lcrypto
 
 
 CMD ["/bin/bash"]

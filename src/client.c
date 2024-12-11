@@ -1,6 +1,5 @@
 #include "../Includes/client.h"
-#include "../Includes/aesEncryption.h"
-#include "../Includes/rsaEncryption.h"
+
 void print_project_logo() {
     pthread_mutex_lock(&print_mutex);
     printf("\n");
