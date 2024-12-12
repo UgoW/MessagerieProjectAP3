@@ -60,7 +60,7 @@ void receive_messages(char *arg) {
         if (dataPacket.type == MESSAGE) {
             printf("\r\033[K");
             printf("[%s]> %s\n", dataPacket.data.message.sender, dataPacket.data.message.message);
-            printf("[%s@COMSEC]$ ", arg);
+            printf("[%s]> ", arg);
             fflush(stdout);
 
         }
@@ -116,12 +116,22 @@ int main() {
 
     while (1) {
         pthread_mutex_lock(&print_mutex);
+        if (messaging_mode) {
+            printf("[%s]> ", username);
+        }
+        else {
+            printf("[%s@COMSEC]$ ", username);
+        }
 
-        printf("[%s@COMSEC]$ ", username);
         pthread_mutex_unlock(&print_mutex);
 
         strcpy(message.sender, username);
         fgets(message.message, BUFFER_SIZE, stdin);
+
+        // Si le message commence par /join
+        if (strncmp(message.message, "/join", 5) == 0) {
+            messaging_mode = 1;
+        }
         message.message[strcspn(message.message, "\n")] = 0;
         if (strlen(message.message) == 0 || strcmp(message.message, " ") == 0) {
             continue;

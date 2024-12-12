@@ -1,16 +1,21 @@
+# Étape 1 : Utiliser l'image Fedora 38 comme base
 FROM fedora:38
 
+# Étape 2 : Installer les outils nécessaires
 RUN dnf update -y && \
-    dnf install -y gcc make openssl openssl-devel && \
-    dnf install -y nano && \
+    dnf install -y gcc make openssl openssl-devel ninja-build meson && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 
+# Étape 3 : Définir le répertoire de travail
 WORKDIR /app
 
+# Étape 4 : Copier le contenu du projet dans le conteneur
 COPY . .
 
-RUN gcc src/server.c  -o server -lssl -lcrypto && \
-    gcc src/client.c -o client -lssl -lcrypto
+# Étape 5 : Configurer et compiler le projet avec Meson
+RUN meson setup builddir && \
+    meson compile -C builddir
 
+# Étape 6 : Définir le comportement par défaut
 CMD ["/bin/bash"]

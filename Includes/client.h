@@ -22,6 +22,7 @@ int is_list_received = 0;
 int messaging_mode = 0;
 int command_is_received = 0;
 
+
 // Function prototypes
 
 /**
