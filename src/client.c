@@ -17,12 +17,11 @@ void print_project_logo() {
 }
 
 void send_message(int socket, Message *msg) {
+
+    // Metadata
     msg->length = strlen(msg->message);
-    if (msg->message[0] == '/') {
-        msg->type = 1;
-    } else {
-        msg->type = 0;
-    }
+    msg->type = (msg->message[0] == '/') ? 1 : 0;
+    strcpy(msg->destination, "Server");
     send(socket, msg, sizeof(Message), 0);
     pthread_mutex_lock(&print_mutex);
     command_is_received = 0;
@@ -51,7 +50,7 @@ void receive_messages() {
             pthread_cond_signal(&list_received_cond);
         }
 
-        if (dataPacket.type == ClientLIST) {
+        if (dataPacket.type == CLIENTLIST) {
             printf("%s (%d)\n", dataPacket.data.clientList.title, dataPacket.data.clientList.client_count);
             for (int i = 0; i < dataPacket.data.clientList.client_count; i++) {
                 printf("%s\t%s:%d\n", dataPacket.data.clientList.clients[i].username, dataPacket.data.clientList.clients[i].ip_address,
@@ -63,7 +62,7 @@ void receive_messages() {
             printf("\n[%s]> %s\n", dataPacket.data.message.sender, dataPacket.data.message.message);
         }
 
-        if (dataPacket.type == ChannelLIST) {
+        if (dataPacket.type == CHANNELLIST) {
             printf("%s (%d)\n", "List of channels", dataPacket.data.channelList.channel_count);
             for (int i = 0; i < dataPacket.data.channelList.channel_count; i++) {
                 printf("%s\t%s\n", dataPacket.data.channelList.channels[i].creator, dataPacket.data.channelList.channels[i].name);

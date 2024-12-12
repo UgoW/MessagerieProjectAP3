@@ -73,7 +73,7 @@ void handle_create(int client_socket, char** args, Message message) {
 void handle_list_channels(int client_socket, char** args, Message message) {
     send_state_packet(client_socket, 1);
     DataPacket dataPacket;
-    dataPacket.type = ChannelLIST;
+    dataPacket.type = CHANNELLIST;
     dataPacket.data.channelList.channel_count = channel_count;
     for (int i = 0; i < channel_count; i++) {
         dataPacket.data.channelList.channels[i] = channels[i];
@@ -143,7 +143,7 @@ Command command_table[] = {
 
 void list_users(int client_socket) {
     DataPacket dataPacket;
-    dataPacket.type = ClientLIST;
+    dataPacket.type = CLIENTLIST;
     dataPacket.data.clientList.client_count = client_count;
     for (int i = 0; i < client_count; i++) {
         dataPacket.data.clientList.clients[i] = clients[i];
@@ -320,7 +320,6 @@ void *handle_client(void *arg) {
             printf(" \t[LOG] Destination: %s\n", message.destination);
             printf(" \t[LOG] Type: %d\n", message.type);
             printf(" \t[LOG] Length: %d\n", message.length);
-            printf(" \t[LOG] Channel: %s\n", message.destination);
             printf("]\n");
         }
         handle_command(client_socket, message);

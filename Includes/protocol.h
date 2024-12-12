@@ -26,8 +26,6 @@ typedef struct {
 Channel channels[50];
 int channel_count = 0;
 
-
-
 typedef struct {
     int socket;
     char username[50];
@@ -53,17 +51,17 @@ typedef struct {
 } ClientList;
 
 typedef enum {
-    ClientLIST,
-    ChannelLIST,
+    CLIENTLIST,
+    CHANNELLIST,
     MESSAGE,
     STATE,
 } DATA_TYPE;
 
 typedef union {
     ClientList clientList;
+    ChannelList channelList;
     Message  message;
     int state;
-    ChannelList channelList;
 } Data;
 
 typedef struct {
