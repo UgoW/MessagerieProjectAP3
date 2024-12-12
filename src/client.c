@@ -42,11 +42,7 @@ void receive_messages() {
         if (bytes_received <= 0) {
             break;
         }
-
-        // Lock before printing
         pthread_mutex_lock(&print_mutex);
-
-
         if (dataPacket.type == STATE) {
             if (dataPacket.data.state == 0) {
                 printf("Command not found\n");
@@ -55,7 +51,7 @@ void receive_messages() {
             pthread_cond_signal(&list_received_cond);
         }
 
-        if (dataPacket.type == CLIST) {
+        if (dataPacket.type == ClientLIST) {
             printf("%s (%d)\n", dataPacket.data.clientList.title, dataPacket.data.clientList.client_count);
             for (int i = 0; i < dataPacket.data.clientList.client_count; i++) {
                 printf("%s\t%s:%d\n", dataPacket.data.clientList.clients[i].username, dataPacket.data.clientList.clients[i].ip_address,

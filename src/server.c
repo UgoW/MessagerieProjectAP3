@@ -1,9 +1,61 @@
 
 #include "../Includes/server.h"
 
+void send_state_packet(int client_socket, int state) {
+    DataPacket dataPacket;
+    dataPacket.type = STATE;
+    dataPacket.data.state = state;
+    send(client_socket, &dataPacket, sizeof(DataPacket), 0);
+}
+
+void handle_list(int client_socket, char** args, Message message) {
+    send_state_packet(client_socket, 1);
+    list_users(client_socket);
+}
+
+void handle_exit(int client_socket, char** args, Message message) {
+    send_state_packet(client_socket, 1);
+}
+
+void handle_msg(int client_socket, char** args, Message message) {
+    send_state_packet(client_socket, 1);
+    pthread_mutex_lock(&clients_mutex);
+    for (int i = 0; i < client_count; i++) {
+        if (strcmp(clients[i].username, message.sender) == 0) {
+            clients[i].in_messaging_mode = 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&clients_mutex);
+}
+
+void handle_create(int client_socket, char** args, Message message) {
+    send_state_packet(client_socket, 1);
+}
+
+void handle_list_channels(int client_socket, char** args, Message message) {
+    send_state_packet(client_socket, 1);
+    // Handle list channels logic here.
+}
+
+void handle_broadcast(int client_socket, char** args, Message message) {
+    send_state_packet(client_socket, 1);
+    broadcast_message(message.sender, message.message);
+}
+
+//
+
+Command command_table[] = {
+        {"/list", handle_list},
+        {"/exit", handle_exit},
+        {"/msg", handle_msg},
+        {"/create", handle_create},
+        {"/list_channels", handle_list_channels},
+};
+
 void list_users(int client_socket) {
     DataPacket dataPacket;
-    dataPacket.type = CLIST;
+    dataPacket.type = ClientLIST;
     dataPacket.data.clientList.client_count = client_count;
     for (int i = 0; i < client_count; i++) {
         dataPacket.data.clientList.clients[i] = clients[i];
@@ -26,16 +78,10 @@ void broadcast_message(const char *sender, const char *message) {
     }
 }
 
-void send_state_packet(int client_socket, int state) {
-    DataPacket dataPacket;
-    dataPacket.type = STATE;
-    dataPacket.data.state = state;
-    send(client_socket, &dataPacket, sizeof(DataPacket), 0);
-}
-
 int parse_command(const char* input, char** command, char*** args) {
     char* input_copy = strdup(input);
     if (!input_copy) {
+        perror("Memory allocation failed");
         return -1;
     }
     char* token = strtok(input_copy, " ");
@@ -72,6 +118,7 @@ void free_arguments(char** args, int arg_count) {
     free(args);
 }
 
+// Create and increment the number of channels
 void handle_command(int client_socket, Message message) {
     char* command = NULL;
     char** args = NULL;
@@ -79,41 +126,21 @@ void handle_command(int client_socket, Message message) {
     int arg_count = parse_command(message.message, &command, &args);
 
     if (arg_count >= 0) {
-        if ((strcmp(command, "/list") == 0 || strcmp(command, "/msg") == 0) && arg_count > 0) {
-            send_state_packet(client_socket, 0);
+        int handled = 0;
+        for (size_t i = 0; i < sizeof(command_table) / sizeof(command_table[0]); i++) {
+            if (strcmp(command, command_table[i].command) == 0) {
+                command_table[i].handler(client_socket, args, message);
+                handled = 1;
+                break;
+            }
         }
-        else if (strcmp(command, "/list") == 0) {
-            send_state_packet(client_socket, 1);
-            list_users(client_socket);
-        }
-        else if (strcmp(command, "/exit") == 0) {
-            send_state_packet(client_socket, 1);
 
-        }
-        else if (strcmp(command, "/msg") == 0) {
-            send_state_packet(client_socket, 1);
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < client_count; i++) {
-                if (strcmp(clients[i].username, message.sender) == 0) {
-                    clients[i].in_messaging_mode = 1;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-        } else if (strcmp(command, "/create") == 0) {
-            if (arg_count == 1) {
-                char* arg1 = args[0];
-                send_state_packet(client_socket, 1);
-            }
-            else {
+        if (!handled) {
+            if (message.type == 0) {
+                handle_broadcast(client_socket, args, message);
+            } else {
                 send_state_packet(client_socket, 0);
-
             }
-        } else if (message.type == 0) {
-            send_state_packet(client_socket, 1);
-            broadcast_message(message.sender, message.message);
-        } else {
-            send_state_packet(client_socket, 0);
         }
 
         free(command);

@@ -13,5 +13,4 @@ COPY . .
 RUN gcc src/server.c  -o server -lssl -lcrypto && \
     gcc src/client.c -o client -lssl -lcrypto
 
-
 CMD ["/bin/bash"]

@@ -8,6 +8,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 100
 
+
 typedef struct {
     int socket;
     char username[50];
@@ -31,7 +32,7 @@ typedef struct {
 } ClientList;
 
 typedef enum {
-    CLIST,
+    ClientLIST,
     MESSAGE,
     STATE,
 } DATA_TYPE;

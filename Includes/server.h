@@ -11,11 +11,23 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <arpa/inet.h>
+#include <time.h>
+
 #include "protocol.h"
 
 Client clients[MAX_CLIENTS];
 int client_count = 0;
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Typedef for command handlers
+typedef void (*CommandHandler)(int, char**, Message);
+
+// Command structure to map commands to handlers
+typedef struct {
+    char* command;
+    CommandHandler handler;
+} Command;
+
 
 /**
  * \brief Lists all connected users.
@@ -39,6 +51,8 @@ void broadcast_message(const char *sender, const char *message);
  * \return NULL
  */
 void *handle_client(void *arg);
+
+
 
 
 #endif //MESSAGERIEPROJECTAP3_SERVER_H
