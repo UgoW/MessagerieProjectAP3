@@ -63,6 +63,13 @@ void receive_messages() {
             printf("\n[%s]> %s\n", dataPacket.data.message.sender, dataPacket.data.message.message);
         }
 
+        if (dataPacket.type == ChannelLIST) {
+            printf("%s (%d)\n", "List of channels", dataPacket.data.channelList.channel_count);
+            for (int i = 0; i < dataPacket.data.channelList.channel_count; i++) {
+                printf("%s\t%s\n", dataPacket.data.channelList.channels[i].creator, dataPacket.data.channelList.channels[i].name);
+            }
+        }
+
         pthread_mutex_unlock(&print_mutex);
 
     }
