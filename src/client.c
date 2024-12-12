@@ -8,7 +8,7 @@ void print_project_logo() {
     printf("/ /__/ /_/ /|   / / /|  |/  __/\n");
     printf("\\___/\\___/ |__| /_/ |_||_|\\___|\n");
     printf("\n");
-    printf("Welcome to COMSEC! The secure communication system.\n\n");
+    printf("Welcome to COMSEC! The secure communication system.(no secure)\n\n");
     printf("Commands:\n");
     printf("  /msg [username] [content]  : Start messaging with other users.\n");
     printf("  /list  : List all connected users.\n");
