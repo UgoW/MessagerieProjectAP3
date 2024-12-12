@@ -22,9 +22,6 @@ int is_list_received = 0;
 int messaging_mode = 0;
 int command_is_received = 0;
 
-
-// Function prototypes
-
 /**
  * \brief Prints the project logo to the console.
  */
@@ -37,13 +34,6 @@ void print_project_logo();
  * \param msg The message to be sent.
  */
 void send_message(int socket, Message *msg);
-
-/**
- * \brief Handles the /exit command by performing necessary cleanup and exiting the client.
- *
- * \param msg The message containing the /exit command.
- */
-void handle_exit(Message *msg);
 
 /**
  * \brief Receives messages from the server and processes them.
