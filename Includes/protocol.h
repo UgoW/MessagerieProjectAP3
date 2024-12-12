@@ -8,23 +8,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 100
 
-//
-
-typedef struct {
-    char creator[50];
-    char name[50];
-} Channel;
-
-// List of channels
-typedef struct {
-    Channel channels[50];
-    int channel_count;
-    int length;
-
-} ChannelList;
-
-Channel channels[50];
-int channel_count = 0;
+#include <stdbool.h>
 
 typedef struct {
     int socket;
@@ -36,19 +20,39 @@ typedef struct {
 } Client;
 
 typedef struct {
-    char sender[50];
-    char message[BUFFER_SIZE];
-    char destination[50];
-    int type;
-    int length;
-} Message;
-
-typedef struct {
     int client_count;
     char title[50];
     Client clients[MAX_CLIENTS];
     int length;
 } ClientList;
+
+typedef struct {
+    char creator[50];
+    char name[50];
+} Channel;
+
+typedef struct {
+    Channel channels[50];
+    int channel_count;
+    int length;
+
+} ChannelList;
+
+typedef struct {
+    char sender[50];
+    char message[BUFFER_SIZE];
+    char destination[50];
+    int type;
+    bool is_command;
+    int length;
+} Message;
+
+// STATE TYPE
+typedef struct {
+    int state;
+    char message[50];
+} State;
+
 
 typedef enum {
     CLIENTLIST,
@@ -61,7 +65,7 @@ typedef union {
     ClientList clientList;
     ChannelList channelList;
     Message  message;
-    int state;
+    State state;
 } Data;
 
 typedef struct {

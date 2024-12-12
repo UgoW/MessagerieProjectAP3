@@ -16,7 +16,9 @@
 #include "protocol.h"
 
 Client clients[MAX_CLIENTS];
+Channel channels[50];
 int client_count = 0;
+int channel_count = 0;
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Typedef for command handlers

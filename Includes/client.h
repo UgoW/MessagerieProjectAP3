@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include "protocol.h"
+#include <stdbool.h>
 
 // Sync mutex and condition
 pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -46,6 +47,6 @@ void handle_exit(Message *msg);
 /**
  * \brief Receives messages from the server and processes them.
  */
-void receive_messages();
+void receive_messages(char *arg);
 
 #endif //MESSAGERIEPROJECTAP3_CLIENT_H

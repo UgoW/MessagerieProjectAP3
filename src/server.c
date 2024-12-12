@@ -3,27 +3,22 @@
 
 #define DEBUG 1
 
-void send_state_packet(int client_socket, int state) {
+void send_state_packet(int client_socket, int state, char *message) {
     DataPacket dataPacket;
     dataPacket.type = STATE;
-    dataPacket.data.state = state;
+    dataPacket.data.state.state = state;
+    strncpy(dataPacket.data.state.message, message, sizeof(dataPacket.data.state.message) - 1);
+    dataPacket.data.state.message[sizeof(dataPacket.data.state.message) - 1] = '\0';
     send(client_socket, &dataPacket, sizeof(DataPacket), 0);
-
-    if (DEBUG) {
-        printf("[LOG] Send DataPacket [\n");
-        printf(" \t[LOG] Type: %d\n", dataPacket.type);
-        printf(" \t[LOG] State: %d\n", dataPacket.data.state);
-        printf("]\n\n");
-    }
 }
 
 void handle_list(int client_socket, char** args, Message message) {
-    send_state_packet(client_socket, 1);
+    send_state_packet(client_socket, 1, "List of connected users:");
     list_users(client_socket);
 }
 
 void handle_exit(int client_socket, char** args, Message message) {
-    send_state_packet(client_socket, 1);
+    send_state_packet(client_socket, 1, "Exiting the application...");
 }
 
 void send_private_message(const char *sender, const char *message, const char *destination) {
@@ -37,27 +32,42 @@ void send_private_message(const char *sender, const char *message, const char *d
     for (int i = 0; i < client_count; i++) {
         if (strcmp(clients[i].username, destination) == 0) {
             send(clients[i].socket, &dataPacket, sizeof(DataPacket), 0);
-            if (DEBUG) {
-                printf("[LOG] Send DataPacket [\n");
-                printf(" \t[LOG] Type: %d\n", dataPacket.type);
-                printf(" \t[LOG] Sender: %s\n", dataPacket.data.message.sender);
-                printf(" \t[LOG] Message: %s\n", dataPacket.data.message.message);
-                printf(" \t[LOG] Destination: %s\n", dataPacket.data.message.destination);
-                printf(" \t[LOG] Length: %d\n", dataPacket.data.message.length);
-                printf("]\n\n");
-            }
             break;
         }
     }
 }
 
 void handle_msg(int client_socket, char** args, Message message) {
-    send_state_packet(client_socket, 1);
+    send_state_packet(client_socket, 1, "Message sent.");
     send_private_message(message.sender, args[1], args[0]);
-
 }
 
-void CreateAndIncrementChannels(char* creator, char* name) {
+void CreateAndIncrementChannels(int client_socket, char* creator, char* name) {
+    int user_channel_count = 0;
+    for (int i = 0; i < channel_count; i++) {
+        if (strcmp(channels[i].creator, creator) == 0) {
+            user_channel_count++;
+        }
+        if (strcmp(channels[i].name, name) == 0) {
+            send_state_packet(client_socket, 0, "Channel already exists.");
+            return;
+        }
+    }
+
+    if (user_channel_count >= 5) {
+        send_state_packet(client_socket, 0, "Maximum number of channels (5) reached.");
+        return;
+    }
+
+    if (channel_count >= 50) {
+        send_state_packet(client_socket, 0, "Maximum number of channels (50) reached.");
+        return;
+    }
+    if (name == NULL || strlen(name) == 0 || strspn(name, " ") == strlen(name)) {
+        send_state_packet(client_socket, 0, "Channel name cannot be empty.");
+        return;
+    }
+
     Channel channel;
     strcpy(channel.creator, creator);
     strcpy(channel.name, name);
@@ -66,12 +76,12 @@ void CreateAndIncrementChannels(char* creator, char* name) {
 }
 
 void handle_create(int client_socket, char** args, Message message) {
-    send_state_packet(client_socket, 1);
-    CreateAndIncrementChannels(message.sender, args[0]);
+    send_state_packet(client_socket, 1, "Channel created.");
+    CreateAndIncrementChannels(client_socket, message.sender, args[0]);
 }
 
 void handle_list_channels(int client_socket, char** args, Message message) {
-    send_state_packet(client_socket, 1);
+    send_state_packet(client_socket, 1, "List of channels:");
     DataPacket dataPacket;
     dataPacket.type = CHANNELLIST;
     dataPacket.data.channelList.channel_count = channel_count;
@@ -80,32 +90,15 @@ void handle_list_channels(int client_socket, char** args, Message message) {
     }
     dataPacket.data.channelList.length = sizeof(dataPacket.data.channelList);
     send(client_socket, &dataPacket, sizeof(DataPacket), 0);
-
-    if (DEBUG) {
-        printf("[LOG] Send DataPacket [\n");
-        printf(" \t[LOG] Type: %d\n", dataPacket.type);
-        printf(" \t[LOG] Channel count: %d\n", dataPacket.data.channelList.channel_count);
-        printf(" \t[LOG] Channels [\n");
-        for (int i = 0; i < channel_count; i++) {
-            printf(" \t\t[LOG] Channel %d [\n", i);
-            printf(" \t\t[LOG] Creator: %s\n", dataPacket.data.channelList.channels[i].creator);
-            printf(" \t\t[LOG] Name: %s\n", dataPacket.data.channelList.channels[i].name);
-            printf("\t]\n");
-        }
-        printf(" \t[LOG] Length: %d\n", dataPacket.data.channelList.length);
-        printf("]\n\n");
-    }
-
-
 }
 
 void handle_broadcast(int client_socket, char** args, Message message) {
-    send_state_packet(client_socket, 1);
+    send_state_packet(client_socket, 1, "");
     broadcast_message(message.sender, message.message);
 }
 
 void handle_join(int client_socket, char** args, Message message) {
-    send_state_packet(client_socket, 1);
+    send_state_packet(client_socket, 1, "You have joined the channel.");
     if (channel_count > 0) {
         for (int i = 0; i < channel_count; i++) {
             if (strcmp(channels[i].name, args[0]) == 0) {
@@ -122,12 +115,12 @@ void handle_join(int client_socket, char** args, Message message) {
                 break;
             }
             else {
-                printf("Channel not found\n");
+                send_state_packet(client_socket, 0, "Channel not found.");
             }
         }
     }
     else {
-        printf("No channels available\n");
+        send_state_packet(client_socket, 0, "Channel not found.");
     }
 
 
@@ -148,29 +141,11 @@ void list_users(int client_socket) {
     for (int i = 0; i < client_count; i++) {
         dataPacket.data.clientList.clients[i] = clients[i];
     }
-    strcpy(dataPacket.data.clientList.title, "List of connected users");
+    strcpy(dataPacket.data.clientList.title, "List of connected users :");
     dataPacket.data.clientList.length = sizeof(dataPacket.data.clientList);
     send(client_socket, &dataPacket, sizeof(DataPacket), 0);
-
-    if (DEBUG) {
-        printf("[LOG] Send DataPacket [\n");
-        printf(" \t[LOG] Type: %d\n", dataPacket.type);
-        printf(" \t[LOG] Client count: %d\n", dataPacket.data.clientList.client_count);
-        printf(" \t[LOG] Title: %s\n", dataPacket.data.clientList.title);
-        printf(" \t[LOG] Clients [\n");
-        for (int i = 0; i < client_count; i++) {
-            printf(" \t\t[LOG] Client %d [\n", i);
-            printf(" \t\t[LOG] Username: %s\n", dataPacket.data.clientList.clients[i].username);
-            printf(" \t\t[LOG] IP Address: %s\n", dataPacket.data.clientList.clients[i].ip_address);
-            printf(" \t\t[LOG] Port: %d\n", dataPacket.data.clientList.clients[i].port);
-            printf(" \t\t[LOG] In messaging mode: %d\n", dataPacket.data.clientList.clients[i].in_messaging_mode);
-            printf(" \t\t[LOG] Channel: %s\n", dataPacket.data.clientList.clients[i].channel);
-            printf("\t]\n");
-        }
-        printf(" \t[LOG] Length: %d\n", dataPacket.data.clientList.length);
-        printf("]\n\n");
-    }
 }
+
 void broadcast_message(const char *sender, const char *message) {
     DataPacket dataPacket;
     dataPacket.type = MESSAGE;
@@ -191,16 +166,6 @@ void broadcast_message(const char *sender, const char *message) {
         if (clients[i].in_messaging_mode && strcmp(clients[i].username, sender) != 0 && strcmp(clients[i].channel, sender_channel) == 0) {
             send(clients[i].socket, &dataPacket, sizeof(DataPacket), 0);
         }
-    }
-
-    if (DEBUG) {
-        printf("[LOG] Send DataPacket [\n");
-        printf(" \t[LOG] Type: %d\n", dataPacket.type);
-        printf(" \t[LOG] Sender: %s\n", dataPacket.data.message.sender);
-        printf(" \t[LOG] Message: %s\n", dataPacket.data.message.message);
-        printf(" \t[LOG] Destination: %s\n", dataPacket.data.message.destination);
-        printf(" \t[LOG] Length: %d\n", dataPacket.data.message.length);
-        printf("]\n\n");
     }
 }
 
@@ -244,7 +209,6 @@ void free_arguments(char** args, int arg_count) {
     free(args);
 }
 
-// Create and increment the number of channels
 void handle_command(int client_socket, Message message) {
     char* command = NULL;
     char** args = NULL;
@@ -260,19 +224,32 @@ void handle_command(int client_socket, Message message) {
                 break;
             }
         }
-
         if (!handled) {
-            if (message.type == 0) {
-                handle_broadcast(client_socket, args, message);
+            if (message.type == MESSAGE && message.is_command == 0) {
+                int client_index = -1;
+                pthread_mutex_lock(&clients_mutex);
+                for (int i = 0; i < client_count; i++) {
+                    if (clients[i].socket == client_socket) {
+                        client_index = i;
+                        break;
+                    }
+                }
+                pthread_mutex_unlock(&clients_mutex);
+
+                if (client_index != -1 && clients[client_index].in_messaging_mode == 1) {
+                    handle_broadcast(client_socket, args, message);
+                } else {
+                    send_state_packet(client_socket, 0, "You are not in a channel.");
+                }
             } else {
-                send_state_packet(client_socket, 0);
+                send_state_packet(client_socket, 0, "Command not found.");
             }
         }
 
         free(command);
         free_arguments(args, arg_count);
     } else {
-        send_state_packet(client_socket, 0);
+        send_state_packet(client_socket, 0, "Invalid command.");
     }
 }
 
@@ -317,7 +294,7 @@ void *handle_client(void *arg) {
         if (DEBUG) {
             printf("[LOG] MESSAGE STRUCTURE [\n");
             printf(" \t[LOG] Received message from %s: %s\n", message.sender, message.message);
-            printf(" \t[LOG] Destination: %s\n", message.destination);
+            printf(" \t[LOG] Is command: %d\n", message.is_command);
             printf(" \t[LOG] Type: %d\n", message.type);
             printf(" \t[LOG] Length: %d\n", message.length);
             printf("]\n");

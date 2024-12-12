@@ -10,18 +10,22 @@ void print_project_logo() {
     printf("\n");
     printf("Welcome to COMSEC! The secure communication system.\n\n");
     printf("Commands:\n");
-    printf("  /msg   : Start messaging with other users.\n");
+    printf("  /msg [username] [content]  : Start messaging with other users.\n");
     printf("  /list  : List all connected users.\n");
-    printf("  /exit  : Exit the application.\n\n");
+    printf("  /exit  : Exit the application.\n");
+    printf("  /create [channel_name] : Create a channel.\n");
+    printf("  /join [channel_name] : Join a channel.\n");
+    printf("  /list_channels : List all channels.\n");
+    printf("  /leave : Leave the channel.\n");
+    printf("\n");
     pthread_mutex_unlock(&print_mutex);
 }
 
 void send_message(int socket, Message *msg) {
 
-    // Metadata
     msg->length = strlen(msg->message);
-    msg->type = (msg->message[0] == '/') ? 1 : 0;
-    strcpy(msg->destination, "Server");
+    msg->is_command = (msg->message[0] == '/') ? true : false;
+    msg->type = MESSAGE;
     send(socket, msg, sizeof(Message), 0);
     pthread_mutex_lock(&print_mutex);
     command_is_received = 0;
@@ -29,12 +33,7 @@ void send_message(int socket, Message *msg) {
     pthread_mutex_unlock(&print_mutex);
 }
 
-void handle_exit(Message *msg) {
-    close(client_socket);
-    exit(0);
-}
-
-void receive_messages() {
+void receive_messages(char *arg) {
     DataPacket dataPacket;
     while (1) {
         int bytes_received = recv(client_socket, &dataPacket, sizeof(DataPacket), 0);
@@ -43,7 +42,7 @@ void receive_messages() {
         }
         pthread_mutex_lock(&print_mutex);
         if (dataPacket.type == STATE) {
-            if (dataPacket.data.state == 0) {
+            if (dataPacket.data.state.state == 0) {
                 printf("Command not found\n");
             }
             command_is_received = 1;
@@ -59,7 +58,11 @@ void receive_messages() {
         }
 
         if (dataPacket.type == MESSAGE) {
-            printf("\n[%s]> %s\n", dataPacket.data.message.sender, dataPacket.data.message.message);
+            printf("\r\033[K");
+            printf("[%s]> %s\n", dataPacket.data.message.sender, dataPacket.data.message.message);
+            printf("[%s@COMSEC]$ ", arg);
+            fflush(stdout);
+
         }
 
         if (dataPacket.type == CHANNELLIST) {
@@ -109,23 +112,20 @@ int main() {
 
     // Create a thread to receive messages
     pthread_t recv_thread;
-    pthread_create(&recv_thread, NULL, (void *)receive_messages, NULL);
+    pthread_create(&recv_thread, NULL, (void *)receive_messages, username);
 
     while (1) {
         pthread_mutex_lock(&print_mutex);
 
-        if (messaging_mode) {
-            printf("#> ", username);
-        } else {
-            printf("[%s@COMSEC]$ ", username);
-        }
-
+        printf("[%s@COMSEC]$ ", username);
         pthread_mutex_unlock(&print_mutex);
 
         strcpy(message.sender, username);
         fgets(message.message, BUFFER_SIZE, stdin);
         message.message[strcspn(message.message, "\n")] = 0;
-
+        if (strlen(message.message) == 0 || strcmp(message.message, " ") == 0) {
+            continue;
+        }
         send_message(client_socket, &message);
     }
     close(client_socket);
