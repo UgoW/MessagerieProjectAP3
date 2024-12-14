@@ -85,8 +85,8 @@ int main() {
     // Create a socket
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (client_socket < 0) {
-        printf("Error while creating socket\n");
-        exit(1);
+        perror("Error creating client socket");
+        return -1;
     }
 
     // Set up the server address
@@ -96,8 +96,8 @@ int main() {
 
     // Connect to the server
     if (connect(client_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        printf("Error while connecting to server\n");
-        exit(1);
+        perror("Error connecting to server");
+        return -1;
     }
 
     // Print the project logo

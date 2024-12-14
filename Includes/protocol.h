@@ -19,6 +19,11 @@ typedef struct {
     char channel[50];
 } Client;
 
+typedef struct ClientNode {
+    Client client;
+    struct ClientNode *next;
+} ClientNode;
+
 typedef struct {
     int client_count;
     char title[50];
