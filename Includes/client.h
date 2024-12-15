@@ -1,7 +1,3 @@
-//
-// Created by Ugo WAREMBOURG on 08/12/2024.
-//
-
 #ifndef MESSAGERIEPROJECTAP3_CLIENT_H
 #define MESSAGERIEPROJECTAP3_CLIENT_H
 
@@ -14,30 +10,37 @@
 #include "protocol.h"
 #include <stdbool.h>
 
-// Sync mutex and condition
-pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t list_received_cond = PTHREAD_COND_INITIALIZER;
-int client_socket;
-int is_list_received = 0;
-int messaging_mode = 0;
-int command_is_received = 0;
+// Structure to hold client state
+typedef struct {
+    pthread_mutex_t print_mutex;
+    pthread_cond_t list_received_cond;
+    int client_socket;
+    int is_list_received;
+    int messaging_mode;
+    int command_is_received;
+} ClientState;
 
 /**
  * \brief Prints the project logo to the console.
+ *
+ * \param state The client state.
  */
-void print_project_logo();
+void print_project_logo(ClientState *state);
 
 /**
  * \brief Sends a message and wait verification from the server.
  *
- * \param socket The socket to send the message to.
+ * \param state The client state.
  * \param msg The message to be sent.
  */
-void send_message(int socket, Message *msg);
+void send_message(ClientState *state, Message *msg);
 
 /**
  * \brief Receives messages from the server and processes them.
+ *
+ * \param state The client state.
+ * \param arg The argument.
  */
-void receive_messages(char *arg);
+void receive_messages(ClientState *state, char *arg);
 
-#endif //MESSAGERIEPROJECTAP3_CLIENT_H
+#endif // MESSAGERIEPROJECTAP3_CLIENT_H
