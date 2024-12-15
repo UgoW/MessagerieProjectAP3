@@ -385,7 +385,7 @@ int main() {
         close(server_socket);
         exit(1);
     }
-
+    DEBUG_PRINT("[LOG] Server started\n");
     while (1) {
         client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
         if (client_socket < 0) {
