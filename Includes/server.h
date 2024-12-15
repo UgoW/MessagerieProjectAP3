@@ -15,12 +15,13 @@
 
 #include "protocol.h"
 
-Client clients[MAX_CLIENTS];
 Channel channels[50];
 int client_count = 0;
 int channel_count = 0;
 ClientNode *head = NULL;
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+
 
 
 typedef void (*CommandHandler)(int, char**, Message);
@@ -97,7 +98,7 @@ void handle_create(int client_socket, char** args, Message message);
  * \param creator The username of the creator of the channel.
  * \param name The name of the channel.
  */
-void Create_and_incrementChannels(int client_socket, char* creator, char* name);
+void create_and_increment_channels(int client_socket, char* creator, char* name);
 
 /**
  * \brief Handles a command received from a client. (/msg)

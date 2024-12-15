@@ -34,40 +34,39 @@ void send_message(ClientState *state, Message *msg) {
 }
 
 void receive_messages(ClientState *state, char *arg) {
-    DataPacket dataPacket;
+    DataPacket data_packet;
     while (1) {
-        int bytes_received = recv(state->client_socket, &dataPacket, sizeof(DataPacket), 0);
+        int bytes_received = recv(state->client_socket, &data_packet, sizeof(data_packet), 0);
         if (bytes_received <= 0) {
             break;
         }
         pthread_mutex_lock(&state->print_mutex);
-        if (dataPacket.type == STATE) {
-            if (dataPacket.data.state.state == 0) {
+        if (data_packet.type == STATE) {
+            if (data_packet.data.state.state == 0) {
                 printf("Command not found\n");
             }
             state->command_is_received = 1;
             pthread_cond_signal(&state->list_received_cond);
         }
 
-        if (dataPacket.type == CLIENTLIST) {
-            printf("%s (%d)\n", dataPacket.data.clientList.title, dataPacket.data.clientList.client_count);
-            for (int i = 0; i < dataPacket.data.clientList.client_count; i++) {
-                printf("%s\t%s:%d\n", dataPacket.data.clientList.clients[i].username, dataPacket.data.clientList.clients[i].ip_address,
-                       dataPacket.data.clientList.clients[i].port);
+        if (data_packet.type == CLIENTLIST) {
+            printf("%s (%d)\n", data_packet.data.clientList.title, data_packet.data.clientList.client_count);
+            for (int i = 0; i < data_packet.data.clientList.client_count; i++) {
+                printf("%s\t%s:%d\n", data_packet.data.clientList.clients[i].username, data_packet.data.clientList.clients[i].ip_address,
+                       data_packet.data.clientList.clients[i].port);
             }
         }
 
-        if (dataPacket.type == MESSAGE) {
+        if (data_packet.type == MESSAGE) {
             printf("\r\033[K");
-            printf("[%s]> %s\n", dataPacket.data.message.sender, dataPacket.data.message.message);
-            printf("[%s]> ", arg);
+            printf("[%s]> %s\n", data_packet.data.message.sender, data_packet.data.message.message);
             fflush(stdout);
         }
 
-        if (dataPacket.type == CHANNELLIST) {
-            printf("%s (%d)\n", "List of channels", dataPacket.data.channelList.channel_count);
-            for (int i = 0; i < dataPacket.data.channelList.channel_count; i++) {
-                printf("%s\t%s\n", dataPacket.data.channelList.channels[i].creator, dataPacket.data.channelList.channels[i].name);
+        if (data_packet.type == CHANNELLIST) {
+            printf("%s (%d)\n", "List of channels", data_packet.data.channelList.channel_count);
+            for (int i = 0; i < data_packet.data.channelList.channel_count; i++) {
+                printf("%s\t%s\n", data_packet.data.channelList.channels[i].creator, data_packet.data.channelList.channels[i].name);
             }
         }
 
@@ -136,6 +135,9 @@ int main() {
         // Si le message commence par /join
         if (strncmp(message.message, "/join", 5) == 0) {
             state.messaging_mode = 1;
+        }
+        if (strncmp(message.message, "/leave", 6) == 0) {
+            state.messaging_mode = 0;
         }
         message.message[strcspn(message.message, "\n")] = 0;
         if (strlen(message.message) == 0 || strcmp(message.message, " ") == 0) {

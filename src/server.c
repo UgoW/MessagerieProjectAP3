@@ -2,12 +2,12 @@
 #include "../Includes/debug.h"
 
 void send_state_packet(int client_socket, int state, char *message) {
-    DataPacket dataPacket;
-    dataPacket.type = STATE;
-    dataPacket.data.state.state = state;
-    strncpy(dataPacket.data.state.message, message, sizeof(dataPacket.data.state.message) - 1);
-    dataPacket.data.state.message[sizeof(dataPacket.data.state.message) - 1] = '\0';
-    send(client_socket, &dataPacket, sizeof(DataPacket), 0);
+    DataPacket data_packet;
+    data_packet.type = STATE;
+    data_packet.data.state.state = state;
+    strncpy(data_packet.data.state.message, message, sizeof(data_packet.data.state.message) - 1);
+    data_packet.data.state.message[sizeof(data_packet.data.state.message) - 1] = '\0';
+    send(client_socket, &data_packet, sizeof(data_packet), 0);
 
     DEBUG_PRINT("[LOG] Sent state packet to client %d: %s\n", client_socket, message);
 }
@@ -22,31 +22,53 @@ void handle_exit(int client_socket, char** args, Message message) {
 }
 
 void send_private_message(const char *sender, const char *message, const char *destination) {
-    DataPacket dataPacket;
-    dataPacket.type = MESSAGE;
-    strcpy(dataPacket.data.message.sender, sender);
-    strcpy(dataPacket.data.message.message, message);
-    strcpy(dataPacket.data.message.destination, destination);
-    dataPacket.data.message.length = sizeof(dataPacket.data.message);
+    DataPacket data_packet;
+    data_packet.type = MESSAGE;
+    strncpy(data_packet.data.message.sender, sender, sizeof(data_packet.data.message.sender) - 1);
+    data_packet.data.message.sender[sizeof(data_packet.data.message.sender) - 1] = '\0';
+    strncpy(data_packet.data.message.message, message, sizeof(data_packet.data.message.message) - 1);
+    data_packet.data.message.message[sizeof(data_packet.data.message.message) - 1] = '\0';
+    strncpy(data_packet.data.message.destination, destination, sizeof(data_packet.data.message.destination) - 1);
+    data_packet.data.message.destination[sizeof(data_packet.data.message.destination) - 1] = '\0';
+    data_packet.data.message.length = strlen(data_packet.data.message.message);
 
+    int client_found = 0;
     ClientNode *current = head;
     while (current != NULL) {
         if (strcmp(current->client.username, destination) == 0) {
-            send(current->client.socket, &dataPacket, sizeof(DataPacket), 0);
+            client_found = 1;
+            send(current->client.socket, &data_packet, sizeof(data_packet), 0);
             break;
         }
         current = current->next;
     }
 
-    DEBUG_PRINT("[LOG] Sent private message to %s: %s\n", destination, message);
+    if (!client_found) {
+        DEBUG_PRINT("[LOG] Client %s not found.\n", destination);
+    } else {
+        DEBUG_PRINT("[LOG] Sent private message to %s: %s\n", destination, message);
+    }
 }
 
 void handle_msg(int client_socket, char** args, Message message) {
+    if (args == NULL || args[0] == NULL || args[1] == NULL) {
+        send_state_packet(client_socket, 0, "Usage: /msg <destination> <message>");
+        return;
+    }
+
+    char full_message[BUFFER_SIZE] = "";
+    for (int i = 1; args[i] != NULL; i++) {
+        strcat(full_message, args[i]);
+        if (args[i + 1] != NULL) {
+            strcat(full_message, " ");
+        }
+    }
+
     send_state_packet(client_socket, 1, "Message sent.");
-    send_private_message(message.sender, args[1], args[0]);
+    send_private_message(message.sender, full_message, args[0]);
 }
 
-void Create_and_increment_channels(int client_socket, char* creator, char* name) {
+void create_and_increment_channels(int client_socket, char* creator, char* name) {
     int user_channel_count = 0;
     for (int i = 0; i < channel_count; i++) {
         if (strcmp(channels[i].creator, creator) == 0) {
@@ -83,19 +105,19 @@ void Create_and_increment_channels(int client_socket, char* creator, char* name)
 
 void handle_create(int client_socket, char** args, Message message) {
     send_state_packet(client_socket, 1, "Channel created.");
-    Create_and_increment_channels(client_socket, message.sender, args[0]);
+    create_and_increment_channels(client_socket, message.sender, args[0]);
 }
 
 void handle_list_channels(int client_socket, char** args, Message message) {
     send_state_packet(client_socket, 1, "List of channels:");
-    DataPacket dataPacket;
-    dataPacket.type = CHANNELLIST;
-    dataPacket.data.channelList.channel_count = channel_count;
+    DataPacket data_packet;
+    data_packet.type = CHANNELLIST;
+    data_packet.data.channelList.channel_count = channel_count;
     for (int i = 0; i < channel_count; i++) {
-        dataPacket.data.channelList.channels[i] = channels[i];
+        data_packet.data.channelList.channels[i] = channels[i];
     }
-    dataPacket.data.channelList.length = sizeof(dataPacket.data.channelList);
-    send(client_socket, &dataPacket, sizeof(DataPacket), 0);
+    data_packet.data.channelList.length = sizeof(data_packet.data.channelList);
+    send(client_socket, &data_packet, sizeof(data_packet), 0);
 }
 
 void handle_broadcast(int client_socket, char** args, Message message) {
@@ -129,6 +151,25 @@ void handle_join(int client_socket, char** args, Message message) {
     }
 }
 
+void handle_leave(int client_socket, char** args, Message message) {
+    pthread_mutex_lock(&clients_mutex);
+    ClientNode *current = head;
+    while (current != NULL) {
+        if (strcmp(current->client.username, message.sender) == 0) {
+            if (current->client.in_messaging_mode == 1) {
+                current->client.in_messaging_mode = 0;
+                strcpy(current->client.channel, "");
+                send_state_packet(client_socket, 1, "You have left the channel.");
+            } else {
+                send_state_packet(client_socket, 0, "You are not in a channel.");
+            }
+            break;
+        }
+        current = current->next;
+    }
+    pthread_mutex_unlock(&clients_mutex);
+}
+
 Command command_table[] = {
         {"/list", handle_list},
         {"/exit", handle_exit},
@@ -136,30 +177,32 @@ Command command_table[] = {
         {"/create", handle_create},
         {"/list_channels", handle_list_channels},
         {"/join", handle_join},
+        {"/leave", handle_leave},
+
 };
 
 void list_users(int client_socket) {
-    DataPacket dataPacket;
-    dataPacket.type = CLIENTLIST;
-    dataPacket.data.clientList.client_count = 0;
+    DataPacket data_packet;
+    data_packet.type = CLIENTLIST;
+    data_packet.data.clientList.client_count = 0;
     ClientNode *current = head;
     while (current != NULL) {
-        dataPacket.data.clientList.clients[dataPacket.data.clientList.client_count++] = current->client;
+        data_packet.data.clientList.clients[data_packet.data.clientList.client_count++] = current->client;
         current = current->next;
     }
-    strcpy(dataPacket.data.clientList.title, "List of connected users :");
-    dataPacket.data.clientList.length = sizeof(dataPacket.data.clientList);
-    send(client_socket, &dataPacket, sizeof(DataPacket), 0);
+    strcpy(data_packet.data.clientList.title, "List of connected users :");
+    data_packet.data.clientList.length = sizeof(data_packet.data.clientList);
+    send(client_socket, &data_packet, sizeof(data_packet), 0);
 
     DEBUG_PRINT("[LOG] Sent list of connected users to client %d\n", client_socket);
 }
 
 void broadcast_message(const char *sender, const char *message) {
-    DataPacket dataPacket;
-    dataPacket.type = MESSAGE;
-    strcpy(dataPacket.data.message.sender, sender);
-    strcpy(dataPacket.data.message.message, message);
-    dataPacket.data.message.length = sizeof(dataPacket.data.message);
+    DataPacket data_packet;
+    data_packet.type = MESSAGE;
+    strcpy(data_packet.data.message.sender, sender);
+    strcpy(data_packet.data.message.message, message);
+    data_packet.data.message.length = sizeof(data_packet.data.message);
     char sender_channel[50];
 
     pthread_mutex_lock(&clients_mutex);
@@ -176,12 +219,10 @@ void broadcast_message(const char *sender, const char *message) {
     current = head;
     while (current != NULL) {
         if (current->client.in_messaging_mode && strcmp(current->client.username, sender) != 0 && strcmp(current->client.channel, sender_channel) == 0) {
-            send(current->client.socket, &dataPacket, sizeof(DataPacket), 0);
+            send(current->client.socket, &data_packet, sizeof(data_packet), 0);
         }
         current = current->next;
     }
-
-    DEBUG_PRINT("[LOG] Broadcasted message from %s: %s\n", sender, message);
 }
 
 int parse_command(const char* input, char** command, char*** args) {
@@ -280,8 +321,6 @@ void add_client(ClientNode **head, Client client) {
     new_node->next = *head;
     *head = new_node;
     client_count++;
-
-    DEBUG_PRINT("[LOG] Added client: %s\n", client.username);
 }
 
 void delete_client(ClientNode **head, int client_socket) {
@@ -301,8 +340,6 @@ void delete_client(ClientNode **head, int client_socket) {
         prev = current;
         current = current->next;
     }
-
-    DEBUG_PRINT("[LOG] Deleted client: %d\n", client_socket);
 }
 
 void *handle_client(void *arg) {
@@ -334,9 +371,7 @@ void *handle_client(void *arg) {
     add_client(&head, client);
     pthread_mutex_unlock(&clients_mutex);
 
-    if (DEBUG) {
-        printf("[LOG] New client connected: %s (%s:%d)\n", username, ip_address, client_port);
-    }
+    DEBUG_PRINT("[LOG] Client connected: %s (%s:%d)\n", username, ip_address, client_port);
 
     while (1) {
         Message message;
@@ -360,6 +395,8 @@ void *handle_client(void *arg) {
 }
 
 int main() {
+
+
     int server_socket, client_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
@@ -385,7 +422,9 @@ int main() {
         close(server_socket);
         exit(1);
     }
-    DEBUG_PRINT("[LOG] Server started\n");
+
+    DEBUG_PRINT("[LOG] Server started on port 8080\n");
+
     while (1) {
         client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
         if (client_socket < 0) {
